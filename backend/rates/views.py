@@ -1,5 +1,6 @@
 from ninja import Router
 from ninja.errors import HttpError
+from django_ratelimit.decorators import ratelimit
 
 from .schemas import RateResponseSchema
 from .services import RateService
@@ -9,6 +10,7 @@ router = Router(tags=['Rates'])
 
 
 @router.get('/', response=list[RateResponseSchema], auth=None)
+@ratelimit(key='ip', rate='10/m', block=True)
 def get_all_rates(request):
     """Get current rates for all supported assets (public)."""
     try:
@@ -19,6 +21,7 @@ def get_all_rates(request):
 
 
 @router.get('/{asset}/', response=RateResponseSchema, auth=None)
+@ratelimit(key='ip', rate='10/m', block=True)
 def get_asset_rate(request, asset: str):
     """Get current rate for a specific asset (public)."""
     asset = asset.lower()

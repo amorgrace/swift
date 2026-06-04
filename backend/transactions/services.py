@@ -8,6 +8,12 @@ from django.db import transaction
 from rates.services import RateService
 from wallets.models import NGNWallet, BankAccount
 from wallets.services import PaystackService
+from kyc.models import KYCVerification, KYCStatus
+from authenticator.email import (
+    send_deposit_received_email,
+    send_withdrawal_completed_email,
+    send_withdrawal_failed_email
+)
 from .models import (
     Deposit,
     Withdrawal,
@@ -103,6 +109,14 @@ class DepositService:
                 related_deposit=deposit,
             )
 
+            # Send Email
+            send_deposit_received_email(
+                user=wallet.user,
+                asset=asset,
+                crypto_amount=str(crypto_amount),
+                ngn_amount=f"{ngn_amount:,.2f}"
+            )
+
             logger.info(f"Successfully processed deposit {quidax_reference} for wallet {wallet.id}")
             return True
 
@@ -138,6 +152,13 @@ class WithdrawalService:
         except BankAccount.DoesNotExist:
             raise ValueError("Bank account not found")
 
+        try:
+            kyc = KYCVerification.objects.get(user=user)
+            if kyc.status != KYCStatus.APPROVED:
+                raise ValueError(f"KYC status is {kyc.status}. Approved KYC is required for withdrawals.")
+        except KYCVerification.DoesNotExist:
+            raise ValueError("KYC not submitted. Please submit KYC documents to enable withdrawals.")
+
         if not bank_account.paystack_recipient_code:
             # Try creating it now if it was missing
             try:
@@ -146,6 +167,13 @@ class WithdrawalService:
                 bank_account.save()
             except Exception as e:
                 raise ValueError("Bank account is not properly linked with Paystack. Try removing and adding it again.")
+
+        # Calculate amounts
+        fee = Decimal('100.00')
+        if amount <= fee:
+            raise ValueError(f"Withdrawal amount must be greater than the fee of ₦{fee:,.2f}")
+        
+        amount_to_paystack = amount - fee
 
         with transaction.atomic():
             # 1. Debit wallet (will raise ValueError if insufficient balance)
@@ -157,6 +185,7 @@ class WithdrawalService:
                 wallet=wallet,
                 bank_account=bank_account,
                 amount=amount,
+                fee=fee,
                 paystack_reference=withdrawal_ref,
                 status=WithdrawalStatus.PENDING,
             )
@@ -176,7 +205,7 @@ class WithdrawalService:
         # Proceed to initiate transfer outside the main atomic block to avoid holding db locks during API call
         # In a real app, this should be done via a Celery background task
         try:
-            amount_kobo = int(amount * 100)
+            amount_kobo = int(amount_to_paystack * 100)
             paystack_res = PaystackService.initiate_transfer(
                 amount_kobo,
                 bank_account.paystack_recipient_code,
@@ -239,6 +268,14 @@ class WithdrawalService:
             withdrawal.save()
             txn_log.status = WithdrawalStatus.SUCCESS
             txn_log.save()
+
+            send_withdrawal_completed_email(
+                user=withdrawal.wallet.user,
+                amount=f"{withdrawal.amount:,.2f}",
+                bank_name=withdrawal.bank_account.bank_name,
+                account_number=withdrawal.bank_account.account_number
+            )
+
             logger.info(f"Withdrawal {reference} successful")
             return True
 
@@ -253,6 +290,13 @@ class WithdrawalService:
                 
                 txn_log.status = status
                 txn_log.save()
+            
+            send_withdrawal_failed_email(
+                user=withdrawal.wallet.user,
+                amount=f"{withdrawal.amount:,.2f}",
+                bank_name=withdrawal.bank_account.bank_name
+            )
+
             logger.info(f"Withdrawal {reference} {status}, funds refunded.")
             return True
 

@@ -42,3 +42,11 @@ class TransactionSchema(BaseModel):
 class TransactionListSchema(BaseModel):
     items: List[TransactionSchema]
     total: int
+
+
+class DashboardStatsSchema(BaseModel):
+    current_balance: Decimal
+    total_deposit_amount: Decimal
+    total_withdrawal_amount: Decimal
+    deposit_count: int
+    withdrawal_count: int

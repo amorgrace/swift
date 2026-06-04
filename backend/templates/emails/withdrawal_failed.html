@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #dc3545; }
+        .content { font-size: 16px; margin-bottom: 20px; }
+        .details { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .footer { font-size: 14px; color: #777; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">Withdrawal Failed</div>
+        <div class="content">
+            Hello {{ full_name }},<br><br>
+            Your recent withdrawal request could not be completed and has failed. The funds have been refunded to your wallet.
+        </div>
+        <div class="details">
+            <strong>Amount:</strong> ₦{{ amount }}<br>
+            <strong>Attempted Bank:</strong> {{ bank_name }}<br>
+            <strong>Time:</strong> {{ timestamp }}
+        </div>
+        <div class="content">
+            Please verify your bank details or contact support if the issue persists.
+        </div>
+        <div class="footer">
+            &copy; {{ year }} SwiftTrade. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

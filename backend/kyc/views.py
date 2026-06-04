@@ -1,8 +1,11 @@
 from ninja import Router
 from ninja.errors import HttpError
 
+from pydantic import BaseModel
+
 from .schemas import KYCSubmissionSchema, KYCResponseSchema
 from .models import KYCVerification, KYCStatus, DocumentType
+from authenticator.email import send_kyc_approved_email, send_kyc_rejected_email
 
 router = Router(tags=['KYC'])
 
@@ -67,3 +70,64 @@ def get_kyc_status(request):
         )
     except KYCVerification.DoesNotExist:
         raise HttpError(404, "KYC has not been submitted yet.")
+
+
+class KYCRejectSchema(BaseModel):
+    reason: str
+
+
+@router.post('/{kyc_id}/approve', response=KYCResponseSchema)
+def approve_kyc(request, kyc_id: int):
+    """Admin endpoint to approve a KYC submission."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied")
+    
+    try:
+        kyc = KYCVerification.objects.get(id=kyc_id)
+        if kyc.status == KYCStatus.APPROVED:
+            raise HttpError(400, "KYC is already approved")
+        
+        kyc.status = KYCStatus.APPROVED
+        kyc.save()
+
+        # Send Email
+        send_kyc_approved_email(user=kyc.user)
+
+        return KYCResponseSchema(
+            status=kyc.status,
+            document_type=kyc.document_type,
+            document_number=kyc.document_number,
+            rejection_reason=kyc.rejection_reason,
+            created_at=kyc.created_at.isoformat()
+        )
+    except KYCVerification.DoesNotExist:
+        raise HttpError(404, "KYC not found")
+
+
+@router.post('/{kyc_id}/reject', response=KYCResponseSchema)
+def reject_kyc(request, kyc_id: int, payload: KYCRejectSchema):
+    """Admin endpoint to reject a KYC submission."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied")
+    
+    try:
+        kyc = KYCVerification.objects.get(id=kyc_id)
+        if kyc.status == KYCStatus.REJECTED:
+            raise HttpError(400, "KYC is already rejected")
+        
+        kyc.status = KYCStatus.REJECTED
+        kyc.rejection_reason = payload.reason
+        kyc.save()
+
+        # Send Email
+        send_kyc_rejected_email(user=kyc.user, reason=payload.reason)
+
+        return KYCResponseSchema(
+            status=kyc.status,
+            document_type=kyc.document_type,
+            document_number=kyc.document_number,
+            rejection_reason=kyc.rejection_reason,
+            created_at=kyc.created_at.isoformat()
+        )
+    except KYCVerification.DoesNotExist:
+        raise HttpError(404, "KYC not found")

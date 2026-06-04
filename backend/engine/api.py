@@ -6,6 +6,7 @@ from wallets.views import router as wallets_router
 from transactions.views import router as transactions_router
 from transactions.webhooks import router as webhooks_router
 from kyc.views import router as kyc_router
+from django_ratelimit.exceptions import Ratelimited
 
 api = NinjaAPI(
     title="Swift API",
@@ -24,6 +25,14 @@ api.add_router("webhooks/", webhooks_router)
 api.add_router("kyc/", kyc_router)
 
 
+@api.exception_handler(Ratelimited)
+def ratelimited_handler(request, exc):
+    return api.create_response(
+        request,
+        {"message": "Too many requests. Please try again later."},
+        status=429,
+    )
+
 @api.get("/")
-def root(request):
+def health_check(request):
     return {"msg": "Hello from Django Ninja (engine)"}

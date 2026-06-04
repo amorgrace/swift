@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: #28a745; }
+        .content { font-size: 16px; margin-bottom: 20px; }
+        .details { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+        .footer { font-size: 14px; color: #777; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">Withdrawal Successful</div>
+        <div class="content">
+            Hello {{ full_name }},<br><br>
+            Your recent withdrawal has been successfully processed and sent to your bank account.
+        </div>
+        <div class="details">
+            <strong>Amount:</strong> ₦{{ amount }}<br>
+            <strong>Bank Name:</strong> {{ bank_name }}<br>
+            <strong>Account Number:</strong> {{ account_number }}<br>
+            <strong>Time:</strong> {{ timestamp }}
+        </div>
+        <div class="content">
+            If you did not request this withdrawal, please contact our support team immediately.
+        </div>
+        <div class="footer">
+            &copy; {{ year }} SwiftTrade. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>

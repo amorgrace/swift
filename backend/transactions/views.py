@@ -2,6 +2,8 @@ from ninja import Router, Query
 from ninja.errors import HttpError
 from typing import List, Optional
 
+from django.db.models import Sum
+
 from pydantic import BaseModel
 
 from .schemas import (
@@ -9,10 +11,11 @@ from .schemas import (
     WithdrawalSchema,
     TransactionSchema,
     TransactionListSchema,
-    DepositSchema
+    DepositSchema,
+    DashboardStatsSchema
 )
 from .services import WithdrawalService
-from .models import Transaction, Deposit, Withdrawal
+from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus
 from wallets.models import NGNWallet
 
 router = Router(tags=['Transactions'])
@@ -114,3 +117,34 @@ def get_withdrawals(request, limit: int = 20, offset: int = 0):
             created_at=w.created_at.isoformat()
         ) for w in withdrawals
     ]
+
+@router.get('/stats', response=DashboardStatsSchema)
+def get_dashboard_stats(request):
+    """Get dashboard statistics for the user."""
+    try:
+        wallet = NGNWallet.objects.get(user=request.user)
+    except NGNWallet.DoesNotExist:
+        return DashboardStatsSchema(
+            current_balance=0,
+            total_deposit_amount=0,
+            total_withdrawal_amount=0,
+            deposit_count=0,
+            withdrawal_count=0
+        )
+
+    # Calculate totals
+    deposits = Deposit.objects.filter(wallet=wallet, status=DepositStatus.CONVERTED)
+    total_deposit_amount = deposits.aggregate(Sum('ngn_amount'))['ngn_amount__sum'] or 0
+    deposit_count = deposits.count()
+
+    withdrawals = Withdrawal.objects.filter(wallet=wallet, status=WithdrawalStatus.SUCCESS)
+    total_withdrawal_amount = withdrawals.aggregate(Sum('amount'))['amount__sum'] or 0
+    withdrawal_count = withdrawals.count()
+
+    return DashboardStatsSchema(
+        current_balance=wallet.balance,
+        total_deposit_amount=total_deposit_amount,
+        total_withdrawal_amount=total_withdrawal_amount,
+        deposit_count=deposit_count,
+        withdrawal_count=withdrawal_count
+    )

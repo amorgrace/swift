@@ -13,6 +13,7 @@ from .schemas import (
 )
 from .services import WalletService, PaystackService
 from .models import BankAccount, NGNWallet
+from django_ratelimit.decorators import ratelimit
 
 router = Router(tags=['Wallets'])
 
@@ -41,6 +42,7 @@ def get_deposit_addresses(request):
 
 
 @router.get('/banks', response=List[BankListSchema], auth=None)
+@ratelimit(key='ip', rate='10/m', block=True)
 def list_banks(request):
     """List all supported Nigerian banks from Paystack."""
     try:
