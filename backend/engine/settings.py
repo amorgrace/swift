@@ -42,6 +42,10 @@ INSTALLED_APPS = [
     'corsheaders',
     'anymail',
     'authenticator',
+    'rates',
+    'wallets',
+    'transactions',
+    'kyc',
 ]
 
 MIDDLEWARE = [
@@ -146,3 +150,18 @@ ANYMAIL = {
 # CORS
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = os.environ['CORS_ALLOWED_ORIGINS'].split(',')
+
+# ---------------------------------------------------------------------------
+# Quidax, Paystack, CoinGecko, Conversion Settings
+# ---------------------------------------------------------------------------
+QUIDAX_API_KEY = os.environ.get('QUIDAX_API_KEY', '')
+QUIDAX_BASE_URL = os.environ.get('QUIDAX_BASE_URL', 'https://openapi.quidax.io/exchange-open-api/v1')
+
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
+PAYSTACK_BASE_URL = os.environ.get('PAYSTACK_BASE_URL', 'https://api.paystack.co')
+
+COINGECKO_API_KEY = os.environ.get('COINGECKO_API_KEY', '')
+COINGECKO_BASE_URL = os.environ.get('COINGECKO_BASE_URL', 'https://api.coingecko.com/api/v3')
+
+CONVERSION_MARGIN_PERCENTAGE = float(os.environ.get('CONVERSION_MARGIN_PERCENTAGE', '2.0'))
+MIN_WITHDRAWAL_NGN = float(os.environ.get('MIN_WITHDRAWAL_NGN', '1000'))

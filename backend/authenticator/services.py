@@ -57,6 +57,13 @@ class AuthenticationService:
 
             AuthenticationService.generate_email_verification_token(email)
 
+        # Create user NGN wallet and Quidax sub-account asynchronously
+        try:
+            from wallets.services import WalletService
+            WalletService.create_wallet_for_user(user)
+        except Exception as e:
+            logger.error(f"Failed to create wallet for {user.email}: {e}")
+
         return user
 
     @staticmethod
