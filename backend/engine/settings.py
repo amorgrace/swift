@@ -1,0 +1,148 @@
+import os
+from datetime import timedelta
+from pathlib import Path
+
+import dj_database_url
+from dotenv import load_dotenv
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+load_dotenv(BASE_DIR / '.env')
+
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+try:
+    SECRET_KEY = os.environ['SECRET_KEY']
+except KeyError:
+    raise RuntimeError(
+        'The SECRET_KEY environment variable is not set. '
+        'Add SECRET_KEY to backend/.env or your environment.'
+    )
+
+DEBUG = os.environ['DEBUG'].lower() in ('true', '1', 'yes')
+
+ALLOWED_HOSTS = os.environ['ALLOWED_HOSTS'].split(',')
+
+# ---------------------------------------------------------------------------
+# Application definition
+# ---------------------------------------------------------------------------
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'ninja_jwt',
+    'ninja_jwt.token_blacklist',
+    'corsheaders',
+    'anymail',
+    'authenticator',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'engine.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'engine.wsgi.application'
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+AUTH_USER_MODEL = 'authenticator.User'
+
+AUTH_PASSWORD_VALIDATORS = []
+
+# ---------------------------------------------------------------------------
+# Internationalization
+# ---------------------------------------------------------------------------
+LANGUAGE_CODE = 'en-us'
+TIME_ZONE = 'UTC'
+USE_I18N = True
+USE_TZ = True
+
+# ---------------------------------------------------------------------------
+# Static files
+# ---------------------------------------------------------------------------
+STATIC_URL = '/static/'
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ---------------------------------------------------------------------------
+# JWT (ninja-jwt)
+# ---------------------------------------------------------------------------
+NINJA_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+# ---------------------------------------------------------------------------
+# Email (Mailtrap via Anymail)
+# ---------------------------------------------------------------------------
+MAILTRAP_API_TOKEN = os.environ['MAILTRAP_API_TOKEN']
+DEFAULT_FROM_EMAIL = os.environ['DEFAULT_FROM_EMAIL']
+FRONTEND_URL = os.environ['FRONTEND_URL']
+
+EMAIL_BACKEND = "anymail.backends.mailtrap.EmailBackend"
+ANYMAIL = {
+    "MAILTRAP_API_TOKEN": MAILTRAP_API_TOKEN,
+}
+
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
+CORS_ALLOWED_ORIGINS = os.environ['CORS_ALLOWED_ORIGINS'].split(',')

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Verify Your Email - SwiftTrade</title>
+  <style>
+    :root { color-scheme: light dark; }
+    /* Dark mode overrides */
+    @media (prefers-color-scheme: dark) {
+      .body-wrap { background-color: transparent !important; }
+      .card { background-color: #0c0c0c !important; border-color: #1a1a1a !important; }
+      .header { background-color: #101010 !important; border-color: #1a1a1a !important; }
+      .brand { color: #0ECB81 !important; }
+      .subtitle { color: #555555 !important; }
+      .heading { color: #ffffff !important; }
+      .body-text { color: #888888 !important; }
+      .highlight { color: #F5A623 !important; }
+      .code-box { background-color: #101010 !important; border-color: #222222 !important; }
+      .code-label { color: #0ECB81 !important; }
+      .code-value { color: #ffffff !important; }
+      .divider { border-color: #1a1a1a !important; }
+      .fine-print { color: #2e2e2e !important; }
+      .footer { background-color: #101010 !important; border-color: #1a1a1a !important; }
+      .footer-text { color: #2e2e2e !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;-webkit-text-size-adjust:none;text-size-adjust:none;">
+  <table class="body-wrap" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f6f6;padding:32px 16px;">
+    <tr>
+      <td align="center">
+
+        <!-- Card -->
+        <table class="card" role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e8e8e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+
+          <!-- Header -->
+          <tr>
+            <td class="header" style="background-color:#fafafa;padding:36px 40px 28px;text-align:center;border-bottom:1px solid #e8e8e8;">
+              <p class="brand" style="margin:0;font-size:26px;font-weight:800;color:#0ECB81;letter-spacing:-0.8px;">⚡ SwiftTrade</p>
+              <p class="subtitle" style="margin:6px 0 0;font-size:12px;font-weight:600;color:#aaaaaa;text-transform:uppercase;letter-spacing:2px;">Email Verification</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 40px 20px;">
+              <h1 class="heading" style="margin:0 0 12px;font-size:24px;font-weight:700;color:#111111;letter-spacing:-0.3px;">Verify your email</h1>
+              <p class="body-text" style="margin:0 0 32px;font-size:15px;color:#666666;line-height:1.7;">
+                Hi <strong class="heading" style="color:#111111;">{{ full_name }}</strong>, thanks for joining SwiftTrade! Enter the verification code below to activate your account. It expires in <strong class="highlight" style="color:#F5A623;">15 minutes</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Code Box -->
+          <tr>
+            <td style="padding:0 40px 36px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <table class="code-box" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9f9;border:1px solid #eeeeee;border-radius:14px;">
+                      <tr>
+                        <td style="padding:28px 20px;text-align:center;">
+                          <p class="code-label" style="margin:0 0 10px;font-size:10px;font-weight:700;color:#0ECB81;text-transform:uppercase;letter-spacing:3px;">Verification Code</p>
+                          <p class="code-value" style="margin:0;font-size:42px;font-weight:800;color:#111111;letter-spacing:12px;font-family:'Courier New',Courier,monospace;">{{ token }}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Divider + Fine Print -->
+          <tr>
+            <td style="padding:0 40px;">
+              <table class="divider" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #eeeeee;">
+                <tr>
+                  <td style="padding:20px 0 0;">
+                    <p class="fine-print" style="margin:0;font-size:13px;color:#bbbbbb;line-height:1.6;">
+                      If you didn't create a SwiftTrade account, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td class="footer" style="padding:24px 40px;margin-top:20px;background-color:#fafafa;border-top:1px solid #e8e8e8;text-align:center;">
+              <p class="footer-text" style="margin:0;font-size:12px;color:#bbbbbb;">
+                © {{ year }} SwiftTrade · All rights reserved
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
