@@ -39,9 +39,7 @@ class TransactionSchema(BaseModel):
     created_at: str
 
 
-class TransactionListSchema(BaseModel):
-    items: List[TransactionSchema]
-    total: int
+
 
 
 class DashboardStatsSchema(BaseModel):

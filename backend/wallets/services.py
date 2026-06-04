@@ -329,6 +329,10 @@ class WalletService:
         Add a bank account for the user.
         Resolves via Paystack to verify and get the account name.
         """
+        # Enforce maximum of 5 bank accounts per user
+        if BankAccount.objects.filter(user=user).count() >= 5:
+            raise ValueError('You cannot link more than 5 bank accounts')
+
         # Resolve the account
         resolved = PaystackService.resolve_account(account_number, bank_code)
         account_name = resolved.get('account_name', '')

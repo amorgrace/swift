@@ -1,5 +1,6 @@
 from ninja import Router, Query
 from ninja.errors import HttpError
+from ninja.pagination import paginate, PageNumberPagination
 from typing import List, Optional
 
 from django.db.models import Sum
@@ -10,7 +11,6 @@ from .schemas import (
     WithdrawalRequestSchema,
     WithdrawalSchema,
     TransactionSchema,
-    TransactionListSchema,
     DepositSchema,
     DashboardStatsSchema
 )
@@ -21,9 +21,7 @@ from wallets.models import NGNWallet
 router = Router(tags=['Transactions'])
 
 
-class PaginationFilters(BaseModel):
-    limit: int = 20
-    offset: int = 0
+class TransactionFilterSchema(BaseModel):
     type: Optional[str] = None
 
 
@@ -44,45 +42,41 @@ def request_withdrawal(request, payload: WithdrawalRequestSchema):
         raise HttpError(500, str(e))
 
 
-@router.get('/', response=TransactionListSchema)
-def get_transactions(request, filters: PaginationFilters = Query(...)):
+@router.get('/', response=List[TransactionSchema])
+@paginate(PageNumberPagination, page_size=10)
+def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
     """Get user's transaction history."""
     try:
         wallet = NGNWallet.objects.get(user=request.user)
     except NGNWallet.DoesNotExist:
-        return TransactionListSchema(items=[], total=0)
+        return []
 
-    qs = Transaction.objects.filter(wallet=wallet)
+    qs = Transaction.objects.filter(wallet=wallet).order_by('-created_at')
     if filters.type:
         qs = qs.filter(type=filters.type)
 
-    total = qs.count()
-    items = qs[filters.offset : filters.offset + filters.limit]
-
-    return TransactionListSchema(
-        items=[
-            TransactionSchema(
-                id=t.id,
-                type=t.type,
-                amount=t.amount,
-                description=t.description,
-                status=t.status,
-                created_at=t.created_at.isoformat()
-            ) for t in items
-        ],
-        total=total
-    )
+    return [
+        TransactionSchema(
+            id=t.id,
+            type=t.type,
+            amount=t.amount,
+            description=t.description,
+            status=t.status,
+            created_at=t.created_at.isoformat()
+        ) for t in qs
+    ]
 
 
 @router.get('/deposits', response=List[DepositSchema])
-def get_deposits(request, limit: int = 20, offset: int = 0):
+@paginate(PageNumberPagination, page_size=10)
+def get_deposits(request):
     """Get user's deposit history."""
     try:
         wallet = NGNWallet.objects.get(user=request.user)
     except NGNWallet.DoesNotExist:
         return []
 
-    deposits = Deposit.objects.filter(wallet=wallet)[offset : offset + limit]
+    deposits = Deposit.objects.filter(wallet=wallet).order_by('-created_at')
     return [
         DepositSchema(
             id=d.id,
@@ -98,14 +92,15 @@ def get_deposits(request, limit: int = 20, offset: int = 0):
 
 
 @router.get('/withdrawals', response=List[WithdrawalSchema])
-def get_withdrawals(request, limit: int = 20, offset: int = 0):
+@paginate(PageNumberPagination, page_size=10)
+def get_withdrawals(request):
     """Get user's withdrawal history."""
     try:
         wallet = NGNWallet.objects.get(user=request.user)
     except NGNWallet.DoesNotExist:
         return []
 
-    withdrawals = Withdrawal.objects.filter(wallet=wallet).select_related('bank_account')[offset : offset + limit]
+    withdrawals = Withdrawal.objects.filter(wallet=wallet).select_related('bank_account').order_by('-created_at')
     return [
         WithdrawalSchema(
             id=w.id,

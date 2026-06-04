@@ -134,11 +134,19 @@ class RateService:
         results = []
         margin = RateService.get_margin_percentage()
 
-        # Try to fetch fresh rates for all assets at once
-        try:
-            RateService.fetch_live_rates()
-        except ValueError:
-            logger.warning('Could not fetch live rates, using cached')
+        # Check if we have fresh rates in cache
+        needs_fetch = True
+        oldest_rate = CachedRate.objects.all().order_by('updated_at').first()
+        if oldest_rate:
+            age = (timezone.now() - oldest_rate.updated_at).total_seconds()
+            if age < RATE_CACHE_TTL:
+                needs_fetch = False
+
+        if needs_fetch:
+            try:
+                RateService.fetch_live_rates()
+            except ValueError:
+                logger.warning('Could not fetch live rates, using cached')
 
         for asset_code, _ in AssetChoices.choices:
             try:
