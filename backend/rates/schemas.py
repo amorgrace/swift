@@ -9,5 +9,7 @@ class RateResponseSchema(BaseModel):
     asset: str
     market_rate: Optional[Decimal] = None
     user_rate: Optional[Decimal] = None
+    market_ngn_usd_rate: Optional[Decimal] = None
+    user_ngn_usd_rate: Optional[Decimal] = None
     margin_percentage: Decimal
     updated_at: Optional[str] = None

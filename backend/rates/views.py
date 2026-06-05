@@ -31,9 +31,19 @@ def get_asset_rate(request, asset: str):
         raise HttpError(400, f'Unsupported asset: {asset}. Supported: {", ".join(valid_assets)}')
 
     try:
-        market_rate = RateService.get_market_rate(asset)
+        rates = RateService.get_market_rates(asset)
+        market_rate = rates['ngn']
+        rate_usd = rates.get('usd')
         user_rate = RateService.get_user_rate(asset)
         margin = RateService.get_margin_percentage()
+        
+        from decimal import Decimal, ROUND_DOWN
+        market_ngn_usd_rate = None
+        user_ngn_usd_rate = None
+        if rate_usd and rate_usd > Decimal('0'):
+            market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+            usd_discount = market_ngn_usd_rate * (margin / Decimal('100'))
+            user_ngn_usd_rate = (market_ngn_usd_rate - usd_discount).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
         from .models import CachedRate
         try:
@@ -46,6 +56,8 @@ def get_asset_rate(request, asset: str):
             asset=asset,
             market_rate=market_rate,
             user_rate=user_rate,
+            market_ngn_usd_rate=market_ngn_usd_rate,
+            user_ngn_usd_rate=user_ngn_usd_rate,
             margin_percentage=margin,
             updated_at=updated_at,
         )

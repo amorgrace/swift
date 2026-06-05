@@ -18,10 +18,10 @@ class RateService:
     """Handles fetching rates from CoinGecko, caching, and margin application."""
 
     @staticmethod
-    def fetch_live_rates() -> Dict[str, Decimal]:
+    def fetch_live_rates() -> Dict[str, dict]:
         """
-        Fetch live rates for all supported assets from CoinGecko.
-        Returns dict of {asset_code: rate_ngn}.
+        Fetch live rates for all supported assets from CoinGecko in both NGN and USD.
+        Returns dict of {asset_code: {'ngn': rate_ngn, 'usd': rate_usd}}.
         Updates the CachedRate table.
         """
         coingecko_ids = ','.join(ASSET_TO_COINGECKO_ID.values())
@@ -30,7 +30,7 @@ class RateService:
 
         params = {
             'ids': coingecko_ids,
-            'vs_currencies': 'ngn',
+            'vs_currencies': 'ngn,usd',
         }
         headers = {}
         if api_key:
@@ -52,25 +52,24 @@ class RateService:
         rates = {}
         for coingecko_id, prices in data.items():
             asset = COINGECKO_ID_TO_ASSET.get(coingecko_id)
-            if asset and 'ngn' in prices:
-                rate = Decimal(str(prices['ngn']))
-                rates[asset] = rate
+            if asset and 'ngn' in prices and 'usd' in prices:
+                rate_ngn = Decimal(str(prices['ngn']))
+                rate_usd = Decimal(str(prices['usd']))
+                rates[asset] = {'ngn': rate_ngn, 'usd': rate_usd}
 
                 # Update cache
                 CachedRate.objects.update_or_create(
                     asset=asset,
-                    defaults={'rate_ngn': rate},
+                    defaults={'rate_ngn': rate_ngn, 'rate_usd': rate_usd},
                 )
 
         logger.info(f'Fetched and cached rates for {len(rates)} assets')
         return rates
 
     @staticmethod
-    def get_market_rate(asset: str) -> Decimal:
+    def get_market_rates(asset: str) -> dict:
         """
-        Get the current market rate for an asset in NGN.
-        Uses cached rate if fresh (< RATE_CACHE_TTL seconds old),
-        otherwise fetches from CoinGecko.
+        Get the current market rate for an asset in NGN and USD.
         """
         asset = asset.lower()
         if asset not in ASSET_TO_COINGECKO_ID:
@@ -79,8 +78,8 @@ class RateService:
         try:
             cached = CachedRate.objects.get(asset=asset)
             age = (timezone.now() - cached.updated_at).total_seconds()
-            if age < RATE_CACHE_TTL:
-                return cached.rate_ngn
+            if age < RATE_CACHE_TTL and cached.rate_usd is not None:
+                return {'ngn': cached.rate_ngn, 'usd': cached.rate_usd}
         except CachedRate.DoesNotExist:
             pass
 
@@ -89,6 +88,14 @@ class RateService:
         if asset not in rates:
             raise ValueError(f'Rate for {asset} not available')
         return rates[asset]
+
+    @staticmethod
+    def get_market_rate(asset: str) -> Decimal:
+        """
+        Get the current market rate for an asset in NGN.
+        """
+        rates = RateService.get_market_rates(asset)
+        return rates['ngn']
 
     @staticmethod
     def get_margin_percentage() -> Decimal:
@@ -130,7 +137,7 @@ class RateService:
 
     @staticmethod
     def get_all_rates() -> list:
-        """Get rates for all supported assets."""
+        """Get rates for all supported assets, including implied NGN/USD rates."""
         results = []
         margin = RateService.get_margin_percentage()
 
@@ -152,13 +159,24 @@ class RateService:
             try:
                 cached = CachedRate.objects.get(asset=asset_code)
                 market_rate = cached.rate_ngn
+                rate_usd = cached.rate_usd
+
                 discount = market_rate * (margin / Decimal('100'))
                 user_rate = (market_rate - discount).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+                market_ngn_usd_rate = None
+                user_ngn_usd_rate = None
+                if rate_usd and rate_usd > Decimal('0'):
+                    market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                    usd_discount = market_ngn_usd_rate * (margin / Decimal('100'))
+                    user_ngn_usd_rate = (market_ngn_usd_rate - usd_discount).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
                 results.append({
                     'asset': asset_code,
                     'market_rate': market_rate,
                     'user_rate': user_rate,
+                    'market_ngn_usd_rate': market_ngn_usd_rate,
+                    'user_ngn_usd_rate': user_ngn_usd_rate,
                     'margin_percentage': margin,
                     'updated_at': cached.updated_at.isoformat(),
                 })
@@ -167,6 +185,8 @@ class RateService:
                     'asset': asset_code,
                     'market_rate': None,
                     'user_rate': None,
+                    'market_ngn_usd_rate': None,
+                    'user_ngn_usd_rate': None,
                     'margin_percentage': margin,
                     'updated_at': None,
                 })
