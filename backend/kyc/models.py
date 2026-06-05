@@ -3,13 +3,13 @@ from django.conf import settings
 
 
 class KYCStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    APPROVED = 'approved', 'Approved'
+    UNVERIFIED = 'unverified', 'Unverified'
+    SUBMITTED = 'submitted', 'Submitted'
     REJECTED = 'rejected', 'Rejected'
+    VERIFIED = 'verified', 'Verified'
 
 
 class DocumentType(models.TextChoices):
-    BVN = 'bvn', 'BVN'
     NIN = 'nin', 'NIN'
     DRIVERS_LICENSE = 'drivers_license', "Driver's License"
     PASSPORT = 'passport', 'Passport'
@@ -31,20 +31,16 @@ class KYCVerification(models.Model):
     )
     document_number = models.CharField(
         max_length=50,
-        help_text='Document ID number (BVN, NIN, License, or Passport number)',
+        help_text='Document ID number (NIN, License, or Passport number)',
     )
     document_url = models.URLField(
         max_length=500,
         help_text='URL from Cloudinary/S3 containing the ID document image',
     )
-    selfie_url = models.URLField(
-        max_length=500,
-        help_text='URL from Cloudinary/S3 containing the selfie image',
-    )
     status = models.CharField(
         max_length=20,
         choices=KYCStatus.choices,
-        default=KYCStatus.PENDING,
+        default=KYCStatus.UNVERIFIED,
     )
     rejection_reason = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

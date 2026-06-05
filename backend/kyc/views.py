@@ -18,19 +18,18 @@ def submit_kyc(request, payload: KYCSubmissionSchema):
     """
     if KYCVerification.objects.filter(user=request.user).exists():
         kyc = KYCVerification.objects.get(user=request.user)
-        if kyc.status in [KYCStatus.PENDING, KYCStatus.APPROVED]:
+        if kyc.status in [KYCStatus.SUBMITTED, KYCStatus.VERIFIED]:
             raise HttpError(400, f"KYC is already {kyc.status}")
-        
+
         valid_types = [choice[0] for choice in DocumentType.choices]
         if payload.document_type not in valid_types:
             raise HttpError(400, f"Invalid document type. Allowed: {', '.join(valid_types)}")
 
-        # If rejected, allow resubmission
+        # If rejected or unverified, allow resubmission
         kyc.document_type = payload.document_type
         kyc.document_number = payload.document_number
         kyc.document_url = str(payload.document_url)
-        kyc.selfie_url = str(payload.selfie_url)
-        kyc.status = KYCStatus.PENDING
+        kyc.status = KYCStatus.SUBMITTED
         kyc.rejection_reason = ""
         kyc.save()
     else:
@@ -43,8 +42,7 @@ def submit_kyc(request, payload: KYCSubmissionSchema):
             document_type=payload.document_type,
             document_number=payload.document_number,
             document_url=str(payload.document_url),
-            selfie_url=str(payload.selfie_url),
-            status=KYCStatus.PENDING,
+            status=KYCStatus.SUBMITTED,
         )
 
     return KYCResponseSchema(
@@ -69,7 +67,14 @@ def get_kyc_status(request):
             created_at=kyc.created_at.isoformat()
         )
     except KYCVerification.DoesNotExist:
-        raise HttpError(404, "KYC has not been submitted yet.")
+        # Return a default unverified response instead of a 404
+        return KYCResponseSchema(
+            status=KYCStatus.UNVERIFIED,
+            document_type="",
+            document_number="",
+            rejection_reason=None,
+            created_at="",
+        )
 
 
 class KYCRejectSchema(BaseModel):
@@ -81,13 +86,13 @@ def approve_kyc(request, kyc_id: int):
     """Admin endpoint to approve a KYC submission."""
     if not request.user.is_staff:
         raise HttpError(403, "Permission denied")
-    
+
     try:
         kyc = KYCVerification.objects.get(id=kyc_id)
-        if kyc.status == KYCStatus.APPROVED:
-            raise HttpError(400, "KYC is already approved")
-        
-        kyc.status = KYCStatus.APPROVED
+        if kyc.status == KYCStatus.VERIFIED:
+            raise HttpError(400, "KYC is already verified")
+
+        kyc.status = KYCStatus.VERIFIED
         kyc.save()
 
         # Send Email
@@ -109,12 +114,12 @@ def reject_kyc(request, kyc_id: int, payload: KYCRejectSchema):
     """Admin endpoint to reject a KYC submission."""
     if not request.user.is_staff:
         raise HttpError(403, "Permission denied")
-    
+
     try:
         kyc = KYCVerification.objects.get(id=kyc_id)
         if kyc.status == KYCStatus.REJECTED:
             raise HttpError(400, "KYC is already rejected")
-        
+
         kyc.status = KYCStatus.REJECTED
         kyc.rejection_reason = payload.reason
         kyc.save()

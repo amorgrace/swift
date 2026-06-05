@@ -154,8 +154,8 @@ class WithdrawalService:
 
         try:
             kyc = KYCVerification.objects.get(user=user)
-            if kyc.status != KYCStatus.APPROVED:
-                raise ValueError(f"KYC status is {kyc.status}. Approved KYC is required for withdrawals.")
+            if kyc.status != KYCStatus.VERIFIED:
+                raise ValueError(f"KYC status is {kyc.status}. Verified KYC is required for withdrawals.")
         except KYCVerification.DoesNotExist:
             raise ValueError("KYC not submitted. Please submit KYC documents to enable withdrawals.")
 
