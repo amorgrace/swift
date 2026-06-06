@@ -6,7 +6,7 @@ from .api import api
 
 def home_view(request):
     return JsonResponse({
-        "message": "<img width=\"50\" height=\"50\" src=\"https://img.icons8.com/ios/50/swift-payment-system.png\" alt=\"swift-payment-system\"/> Welcome to the Swift API Base!",
+        "message": "Welcome to the Swift API Base!",
         "status": "online",
     })
 

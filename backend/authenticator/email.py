@@ -44,20 +44,15 @@ def send_email(
     msg.attach_alternative(html_body, "text/html")
     
     try:
-        # Run email sending in a separate thread so it doesn't block the API response
-        thread = threading.Thread(target=_send_email_thread, args=(msg, to_email, subject))
-        thread.start()
-        return True
-    except Exception as exc:
-        logger.error("Failed to start email thread for %s: %s", to_email, exc)
-        return False
-
-def _send_email_thread(msg, to_email, subject):
-    try:
+        # Send email synchronously so that any failure raises an exception,
+        # which will trigger the transaction rollback in create_user.
         msg.send()
         logger.info("Email sent to %s [%s]", to_email, subject)
+        return True
     except Exception as exc:
         logger.error("Failed to send email to %s: %s", to_email, exc)
+        # Raise the exception so the caller (and the transaction.atomic block) knows it failed
+        raise RuntimeError(f"Failed to send email: {exc}")
 
 
 # -------------------------------------------------------------------
