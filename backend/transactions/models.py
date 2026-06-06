@@ -1,10 +1,23 @@
 import uuid
+import random
+import string
 from decimal import Decimal
 
 from django.db import models
 
 from rates.models import AssetChoices
 from wallets.models import BankAccount, NGNWallet, NetworkChoices
+
+
+def generate_transaction_id() -> str:
+    """
+    Generate a unique transaction ID with the 'TX' prefix.
+    Format: TX + 8 uppercase alphanumeric characters = 10 characters total.
+    Example: TXAB3F9K2P
+    """
+    chars = string.ascii_uppercase + string.digits
+    suffix = ''.join(random.choices(chars, k=8))
+    return f'TX{suffix}'
 
 
 class DepositStatus(models.TextChoices):
@@ -151,9 +164,9 @@ class Transaction(models.Model):
         help_text='Amount in NGN',
     )
     reference = models.CharField(
-        max_length=255,
+        max_length=10,
         unique=True,
-        default=uuid.uuid4,
+        default=generate_transaction_id,
     )
     description = models.CharField(max_length=255)
     status = models.CharField(max_length=50)

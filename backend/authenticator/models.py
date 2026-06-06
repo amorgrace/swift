@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.core.validators import EmailValidator
@@ -33,6 +35,7 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     username = None
     """Custom User model with additional fields for authentication"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     full_name = models.CharField(max_length=255, blank=False)
     email = models.EmailField(unique=True, validators=[EmailValidator()])
     phone_number = models.CharField(max_length=20, blank=True, null=True)

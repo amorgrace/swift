@@ -26,7 +26,7 @@ class UserLoginSchema(BaseModel):
 
 class UserResponseSchema(BaseModel):
     """Schema for user response"""
-    id: int
+    id: str
     full_name: str
     email: str
     phone_number: Optional[str] = None
@@ -81,3 +81,8 @@ class VerifyEmailSchema(BaseModel):
     """Schema for verifying email with a token"""
     email: EmailStr = Field(..., examples=["john@example.com"])
     token: str = Field(..., min_length=6, max_length=6, examples=["123456"])
+
+
+class ResendVerificationSchema(BaseModel):
+    """Schema for requesting a new email verification code"""
+    email: EmailStr = Field(..., examples=["john@example.com"])

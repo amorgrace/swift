@@ -21,6 +21,7 @@ from .models import (
     DepositStatus,
     WithdrawalStatus,
     TransactionType,
+    generate_transaction_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -196,7 +197,7 @@ class WithdrawalService:
                 wallet=wallet,
                 type=TransactionType.WITHDRAWAL,
                 amount=amount,
-                reference=withdrawal_ref,
+                reference=generate_transaction_id(),
                 description=description,
                 status=WithdrawalStatus.PENDING,
                 related_withdrawal=withdrawal,

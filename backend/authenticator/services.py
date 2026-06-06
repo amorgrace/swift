@@ -241,3 +241,18 @@ class AuthenticationService:
         send_password_changed_email(user)
 
         return True
+
+    @staticmethod
+    def resend_email_verification(email: str) -> None:
+        """
+        Resend a new 6-digit email verification code.
+        Silently does nothing if the account does not exist or is already active,
+        to avoid leaking account existence (email enumeration protection).
+        """
+        user = AuthenticationService.get_user_by_email(email)
+        if not user or user.is_active:
+            # Do nothing — don't reveal whether the account exists or is already verified
+            return
+
+        # Re-use the existing token generation + email sending logic
+        AuthenticationService.generate_email_verification_token(email)

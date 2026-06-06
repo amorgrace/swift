@@ -11,6 +11,7 @@ from .schemas import (
     ChangePasswordSchema,
     LogoutSchema,
     VerifyEmailSchema,
+    ResendVerificationSchema,
 )
 from .services import AuthenticationService
 
@@ -49,7 +50,7 @@ def verify_email(request, payload: VerifyEmailSchema):
             tokens = AuthenticationService.get_tokens_for_user(user)
 
             user_data = UserResponseSchema(
-                id=user.id,
+                id=str(user.id),
                 full_name=user.full_name,
                 email=user.email,
                 phone_number=user.phone_number,
@@ -78,7 +79,7 @@ def login(request, payload: UserLoginSchema):
 		tokens = AuthenticationService.get_tokens_for_user(user)
 
 		user_data = UserResponseSchema(
-			id=user.id,
+			id=str(user.id),
 			full_name=user.full_name,
 			email=user.email,
 			phone_number=user.phone_number,
@@ -101,7 +102,7 @@ def get_current_user(request):
 		raise HttpError(401, "Not authenticated")
 
 	return UserResponseSchema(
-		id=request.user.id,
+		id=str(request.user.id),
 		full_name=request.user.full_name,
 		email=request.user.email,
 		phone_number=request.user.phone_number,
@@ -167,3 +168,16 @@ def resend_reset_token(request, payload: ForgotPasswordSchema):
         return {"message": "If an account with that email exists, a new password reset token has been sent."}
     except Exception as e:
         raise HttpError(500, f"Failed to resend token: {str(e)}")
+
+
+@router.post("/resend-verification", response={200: dict}, auth=None)
+def resend_verification_email(request, payload: ResendVerificationSchema):
+    """
+    Resend the email verification code to the given email address.
+    Only works if the account exists and is not yet verified.
+    """
+    try:
+        AuthenticationService.resend_email_verification(payload.email)
+        return {"message": "If an unverified account with that email exists, a new verification code has been sent."}
+    except Exception as e:
+        raise HttpError(500, f"Failed to resend verification email: {str(e)}")
