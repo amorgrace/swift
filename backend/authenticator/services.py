@@ -28,41 +28,58 @@ class AuthenticationService:
     ) -> User:
         """
         Create a new user with the given credentials.
-        
+
+        All steps — user creation, verification token, email dispatch, and
+        wallet setup — run inside a single atomic transaction. If any step
+        fails (including email sending) the entire registration is rolled back,
+        leaving no orphaned records in the database.
+
         Args:
             full_name: User's full name
             email: User's email (unique)
             password: User's password (will be hashed)
             phone_number: Optional phone number
-            
+
         Returns:
             Created User instance
-            
+
         Raises:
-            ValueError: If email already exists
+            ValueError: If email already exists or any registration step fails
         """
         from django.db import transaction
+        from wallets.services import WalletService
 
         if User.objects.filter(email=email).exists():
             raise ValueError(f"User with email {email} already exists")
 
         with transaction.atomic():
+            # 1. Create the user record (inactive until email is verified)
             user = User.objects.create_user(
                 email=email,
                 full_name=full_name,
                 phone_number=phone_number,
                 password=password,
-                is_active=False
+                is_active=False,
             )
 
+            # 2. Generate token AND send verification email.
+            #    If the email fails, the ValueError bubbles up and the
+            #    entire transaction (including the user row) is rolled back.
             AuthenticationService.generate_email_verification_token(email)
 
-        # Create user NGN wallet and Quidax sub-account asynchronously
-        try:
-            from wallets.services import WalletService
-            WalletService.create_wallet_for_user(user)
-        except Exception as e:
-            logger.error(f"Failed to create wallet for {user.email}: {e}")
+            # 3. Create the NGN wallet (and attempt Quidax sub-account setup).
+            #    Quidax errors are tolerated — wallet is still created so the
+            #    user isn't blocked. A hard DB failure will still roll back.
+            try:
+                WalletService.create_wallet_for_user(user)
+            except Exception as e:
+                logger.error(
+                    f"Wallet setup failed for {user.email}: {e}. "
+                    f"Rolling back registration."
+                )
+                raise ValueError(
+                    "Registration failed during wallet setup. Please try again."
+                )
 
         return user
 
