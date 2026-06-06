@@ -281,27 +281,8 @@ class WalletService:
     def create_wallet_for_user(user) -> NGNWallet:
         """
         Create an NGN wallet for a user.
-        Also creates a Quidax sub-account and generates deposit addresses.
-        Gracefully handles Quidax errors (wallet still created without addresses).
         """
         wallet, created = NGNWallet.objects.get_or_create(user=user)
-
-        if not created:
-            return wallet
-
-        # Try to create Quidax sub-account and addresses
-        try:
-            quidax_user_id = QuidaxService.create_sub_account(user)
-            wallet.quidax_user_id = quidax_user_id
-            wallet.save(update_fields=['quidax_user_id'])
-
-            QuidaxService.generate_all_addresses(quidax_user_id, wallet)
-        except (ValueError, Exception) as e:
-            logger.warning(
-                f'Wallet created for {user.email} but Quidax setup failed: {e}. '
-                f'Deposit addresses can be generated later.'
-            )
-
         return wallet
 
     @staticmethod
