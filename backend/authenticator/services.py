@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from ninja_jwt.tokens import RefreshToken
 from typing import Optional, Dict, Any
+from anymail.exceptions import AnymailError
 
 from .email import (
     send_password_reset_email,
@@ -160,7 +161,14 @@ class AuthenticationService:
             expires_at=timezone.now() + timedelta(minutes=15)
         )
 
-        send_password_reset_email(user, token_val)
+        try:
+            send_password_reset_email(user, token_val)
+        except AnymailError as e:
+            logger.error("Anymail error sending password reset email to %s: %s", user.email, e)
+            raise ValueError("Failed to send password reset email. Email service temporarily unavailable.")
+        except Exception as e:
+            logger.error("Error sending password reset email to %s: %s", user.email, e)
+            raise ValueError(f"Failed to send password reset email: {str(e)}")
 
         return token_val
 
@@ -188,9 +196,16 @@ class AuthenticationService:
             expires_at=timezone.now() + timedelta(minutes=15)
         )
 
-        success = send_verification_email(user, token_val)
-        if not success:
-            raise ValueError("Failed to send verification email. Please try again later.")
+        try:
+            success = send_verification_email(user, token_val)
+            if not success:
+                raise ValueError("Failed to send verification email. Please try again later.")
+        except AnymailError as e:
+            logger.error("Anymail error sending verification email to %s: %s", user.email, e)
+            raise ValueError("Failed to send verification email. Email service temporarily unavailable.")
+        except Exception as e:
+            logger.error("Error sending verification email to %s: %s", user.email, e)
+            raise ValueError(f"Failed to send verification email: {str(e)}")
 
         return token_val
 

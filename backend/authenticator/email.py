@@ -1,12 +1,29 @@
 import logging
+import re
 from datetime import datetime
 
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.core.mail import EmailMultiAlternatives
-import threading
+from anymail.exceptions import AnymailError
 
 logger = logging.getLogger(__name__)
+
+
+def extract_email_from_formatted(email_string: str) -> str:
+    """
+    Extract plain email address from formatted email string.
+    
+    Examples:
+        "name@example.com" -> "name@example.com"
+        "Name <name@example.com>" -> "name@example.com"
+        "SwiftTrade Support <support@swifttrade.com>" -> "support@swifttrade.com"
+    """
+    match = re.search(r'<(.+?)>', email_string)
+    if match:
+        return match.group(1).strip()
+    return email_string.strip()
+
 
 def send_email(
     to_email: str,
@@ -28,30 +45,52 @@ def send_email(
     Returns:
         True if the API accepted the message, False otherwise.
     """
+    logger.info(f"=== STARTING EMAIL SEND ===")
+    logger.info(f"To: {to_email}, Name: {to_name}")
+    logger.info(f"Subject: {subject}")
+    logger.info(f"Template: {template_name}")
+    
     ctx = context or {}
     ctx.setdefault("year", datetime.now().year)
-    html_body = render_to_string(template_name, ctx)
-
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@swifttrade.com")
-    to_address = f"{to_name} <{to_email}>" if to_name else to_email
+    
+    try:
+        html_body = render_to_string(template_name, ctx)
+        logger.info(f"Template rendered successfully")
+    except Exception as e:
+        logger.error(f"Failed to render template {template_name}: {e}")
+        raise
+    
+    # Get DEFAULT_FROM_EMAIL and extract just the email address (no name formatting)
+    default_from = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@swifttrade.com")
+    logger.info(f"Raw DEFAULT_FROM_EMAIL: {default_from}")
+    
+    from_email = extract_email_from_formatted(default_from)
+    logger.info(f"Extracted from_email: {from_email}")
 
     msg = EmailMultiAlternatives(
         subject=subject,
         body="Please view this email in an HTML-compatible email client.",
         from_email=from_email,
-        to=[to_address],
+        to=[to_email],
     )
     msg.attach_alternative(html_body, "text/html")
+    logger.info(f"EmailMultiAlternatives created successfully")
     
     try:
-        # Send email synchronously so that any failure raises an exception,
-        # which will trigger the transaction rollback in create_user.
-        msg.send()
-        logger.info("Email sent to %s [%s]", to_email, subject)
+        logger.info(f"Calling msg.send()...")
+        result = msg.send(fail_silently=False)
+        logger.info(f"msg.send() returned: {result}")
+        logger.info(f"Email sent successfully to {to_email} [Subject: {subject}]")
         return True
+    except AnymailError as exc:
+        logger.error(f"❌ ANYMAIL ERROR sending email to {to_email}: {exc}")
+        logger.error(f"AnymailError details: {type(exc).__name__}: {str(exc)}")
+        raise
     except Exception as exc:
-        logger.error("Failed to send email to %s: %s", to_email, exc)
-        # Raise the exception so the caller (and the transaction.atomic block) knows it failed
+        logger.error(f"❌ GENERAL ERROR sending email to {to_email}: {exc}")
+        logger.error(f"Exception details: {type(exc).__name__}: {str(exc)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise RuntimeError(f"Failed to send email: {exc}")
 
 
