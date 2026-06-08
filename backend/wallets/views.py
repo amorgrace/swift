@@ -117,6 +117,23 @@ def remove_bank_account(request, account_id: int):
         raise HttpError(500, str(e))
 
 
+@router.patch('/bank-accounts/{account_id}/default', response={200: dict})
+def set_default_bank_account(request, account_id: int):
+    """Set a bank account as the default for withdrawals."""
+    try:
+        account = BankAccount.objects.get(id=account_id, user=request.user)
+        # Unset other defaults
+        BankAccount.objects.filter(user=request.user).update(is_default=False)
+        account.is_default = True
+        account.save()
+        return {'message': 'Default bank account updated successfully'}
+    except BankAccount.DoesNotExist:
+        raise HttpError(404, 'Bank account not found')
+    except Exception as e:
+        raise HttpError(500, str(e))
+
+
+
 @router.post('/transaction-pin', response={200: dict})
 def set_transaction_pin(request, payload: SetTransactionPinSchema):
     """Set or update the 4-digit transaction PIN for withdrawals."""

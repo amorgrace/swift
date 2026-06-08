@@ -55,6 +55,8 @@ def verify_email(request, payload: VerifyEmailSchema):
                 email=user.email,
                 phone_number=user.phone_number,
                 created_at=user.created_at.isoformat(),
+                updated_at=user.updated_at.isoformat(),
+                last_login=user.last_login.isoformat() if user.last_login else None,
             )
 
             return AuthTokenResponseSchema(
@@ -84,6 +86,8 @@ def login(request, payload: UserLoginSchema):
 			email=user.email,
 			phone_number=user.phone_number,
 			created_at=user.created_at.isoformat(),
+			updated_at=user.updated_at.isoformat(),
+			last_login=user.last_login.isoformat() if user.last_login else None,
 		)
 
 		return AuthTokenResponseSchema(
@@ -107,6 +111,8 @@ def get_current_user(request):
 		email=request.user.email,
 		phone_number=request.user.phone_number,
 		created_at=request.user.created_at.isoformat(),
+		updated_at=request.user.updated_at.isoformat(),
+		last_login=request.user.last_login.isoformat() if request.user.last_login else None,
 	)
 
 @router.post("/forget-password", response={200: dict}, auth=None)
@@ -181,3 +187,19 @@ def resend_verification_email(request, payload: ResendVerificationSchema):
         return {"message": "If an unverified account with that email exists, a new verification code has been sent."}
     except Exception as e:
         raise HttpError(500, f"Failed to resend verification email: {str(e)}")
+
+
+@router.delete("/deactivate", response={200: dict})
+def deactivate_account(request):
+    """
+    Deactivate the user account by setting is_active to False.
+    This allows the user to be reinstated later if desired.
+    """
+    try:
+        user = request.user
+        user.is_active = False
+        user.save()
+        return {"message": "Account deactivated successfully."}
+    except Exception as e:
+        raise HttpError(500, f"Failed to deactivate account: {str(e)}")
+

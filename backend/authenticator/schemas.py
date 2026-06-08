@@ -31,6 +31,8 @@ class UserResponseSchema(BaseModel):
     email: str
     phone_number: Optional[str] = None
     created_at: str
+    updated_at: str
+    last_login: Optional[str] = None
 
     class Config:
         from_attributes = True
