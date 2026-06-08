@@ -42,6 +42,12 @@ class AddBankAccountSchema(BaseModel):
     account_number: str = Field(..., examples=["0123456789"])
 
 
+class ResolveAccountSchema(BaseModel):
+    """Schema for resolving an account name before adding."""
+    bank_code: str = Field(..., examples=["058"])
+    account_number: str = Field(..., examples=["0123456789"])
+
+
 class BankListSchema(BaseModel):
     """Schema for a bank in the list of supported banks."""
     name: str

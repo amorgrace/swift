@@ -8,6 +8,7 @@ from .schemas import (
     DepositAddressSchema,
     BankAccountSchema,
     AddBankAccountSchema,
+    ResolveAccountSchema,
     BankListSchema,
     SetTransactionPinSchema
 )
@@ -89,6 +90,18 @@ def add_bank_account(request, payload: AddBankAccountSchema):
         raise HttpError(400, str(e))
     except Exception as e:
         raise HttpError(500, str(e))
+
+
+@router.post('/resolve-account', response={200: dict})
+def resolve_account(request, payload: ResolveAccountSchema):
+    """Verify an account number and get the account name before saving."""
+    try:
+        resolved = PaystackService.resolve_account(payload.account_number, payload.bank_code)
+        return {'account_name': resolved.get('account_name', '')}
+    except ValueError as e:
+        raise HttpError(400, "Could not resolve bank account. Please check the details.")
+    except Exception as e:
+        raise HttpError(500, "An error occurred during account verification.")
 
 
 @router.delete('/bank-accounts/{account_id}', response={200: dict})
