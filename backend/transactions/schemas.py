@@ -37,6 +37,11 @@ class TransactionSchema(BaseModel):
     description: str
     status: str
     created_at: str
+    ref: str
+    bank: Optional[str] = None
+    coin: Optional[str] = None
+    network: Optional[str] = None
+    crypto_amount: Optional[Decimal] = None
 
 
 

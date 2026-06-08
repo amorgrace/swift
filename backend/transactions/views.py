@@ -15,7 +15,7 @@ from .schemas import (
     DashboardStatsSchema
 )
 from .services import WithdrawalService
-from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus
+from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus, TransactionType
 from wallets.models import NGNWallet
 
 router = Router(tags=['Transactions'])
@@ -51,20 +51,49 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
     except NGNWallet.DoesNotExist:
         return []
 
-    qs = Transaction.objects.filter(wallet=wallet).order_by('-created_at')
+    qs = Transaction.objects.filter(wallet=wallet).select_related(
+        'related_deposit',
+        'related_withdrawal__bank_account'
+    ).order_by('-created_at')
+    
     if filters.type:
         qs = qs.filter(type=filters.type)
 
-    return [
-        TransactionSchema(
+    results = []
+    for t in qs:
+        mapped_type = 'trade' if t.type == TransactionType.DEPOSIT else 'withdrawal'
+        
+        bank = None
+        coin = None
+        network = None
+        crypto_amount = None
+        
+        if t.type == TransactionType.DEPOSIT and t.related_deposit:
+            d = t.related_deposit
+            coin = d.asset.upper()
+            network = d.network
+            crypto_amount = d.crypto_amount
+        elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
+            w = t.related_withdrawal
+            acc_num = w.bank_account.account_number
+            masked = acc_num[-4:] if len(acc_num) >= 4 else acc_num
+            bank = f"{w.bank_account.bank_name} ••{masked}"
+            
+        results.append(TransactionSchema(
             id=t.id,
-            type=t.type,
+            type=mapped_type,
             amount=t.amount,
             description=t.description,
-            status=t.status,
-            created_at=t.created_at.isoformat()
-        ) for t in qs
-    ]
+            status=t.status.lower(),  # Ensure status is lowercase for frontend
+            created_at=t.created_at.isoformat(),
+            ref=t.reference,
+            bank=bank,
+            coin=coin,
+            network=network,
+            crypto_amount=crypto_amount
+        ))
+
+    return results
 
 
 @router.get('/deposits', response=List[DepositSchema])
