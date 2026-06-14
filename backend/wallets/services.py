@@ -280,9 +280,17 @@ class WalletService:
     @staticmethod
     def create_wallet_for_user(user) -> NGNWallet:
         """
-        Create an NGN wallet for a user.
+        Create an NGN wallet for a user and initialize Quidax sub-account.
         """
         wallet, created = NGNWallet.objects.get_or_create(user=user)
+        if created and not wallet.quidax_user_id:
+            try:
+                quidax_user_id = QuidaxService.create_sub_account(user)
+                wallet.quidax_user_id = quidax_user_id
+                wallet.save(update_fields=['quidax_user_id'])
+                QuidaxService.generate_all_addresses(quidax_user_id, wallet)
+            except Exception as e:
+                logger.error(f'Failed to setup Quidax for wallet {wallet.id}: {e}')
         return wallet
 
     @staticmethod
@@ -292,6 +300,21 @@ class WalletService:
             wallet = NGNWallet.objects.get(user=user)
         except NGNWallet.DoesNotExist:
             raise ValueError('Wallet not found')
+
+        if not wallet.quidax_user_id:
+            try:
+                quidax_user_id = QuidaxService.create_sub_account(user)
+                wallet.quidax_user_id = quidax_user_id
+                wallet.save(update_fields=['quidax_user_id'])
+            except Exception as e:
+                logger.error(f'Failed to setup Quidax sub-account: {e}')
+
+        if wallet.quidax_user_id:
+            if not DepositAddress.objects.filter(wallet=wallet).exists():
+                try:
+                    QuidaxService.generate_all_addresses(wallet.quidax_user_id, wallet)
+                except Exception as e:
+                    logger.error(f'Failed to generate deposit addresses: {e}')
 
         addresses = DepositAddress.objects.filter(wallet=wallet).order_by('asset', 'network')
         grouped = {}
