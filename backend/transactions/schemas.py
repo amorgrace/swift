@@ -43,6 +43,10 @@ class TransactionSchema(BaseModel):
     network: Optional[str] = None
     crypto_amount: Optional[Decimal] = None
 
+class AdminTransactionSchema(TransactionSchema):
+    user_email: str
+    user_full_name: str
+
 
 
 

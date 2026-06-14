@@ -1,7 +1,7 @@
 from ninja import Router
 from django.db.models import Sum
 from django.utils import timezone
-from .schemas import DashboardStatsSchema
+from .schemas import DashboardStatsSchema, AdminDashboardStatsSchema
 from wallets.models import NGNWallet
 from transactions.models import Deposit, Withdrawal, DepositStatus, WithdrawalStatus
 
@@ -40,4 +40,37 @@ def get_dashboard_stats(request):
         totalWithdrawn=total_withdrawn,
         completedTrades=completed_trades,
         volumeThisMonth=volume_this_month
+    )
+
+
+@router.get('/admin/stats', response=AdminDashboardStatsSchema)
+def get_admin_dashboard_stats(request):
+    """Get global dashboard statistics for the admin."""
+    if not request.user.is_staff:
+        from ninja.errors import HttpError
+        raise HttpError(403, "Permission denied.")
+        
+    from django.contrib.auth import get_user_model
+    from kyc.models import KYCVerification, KYCStatus
+    from decimal import Decimal
+    
+    User = get_user_model()
+    
+    total_users = User.objects.count()
+    total_kyc_pending = KYCVerification.objects.filter(status=KYCStatus.SUBMITTED).count()
+    
+    total_ngn_balance = NGNWallet.objects.aggregate(Sum('balance'))['balance__sum'] or Decimal('0.00')
+    
+    deposits = Deposit.objects.filter(status=DepositStatus.CONVERTED)
+    total_system_deposits = deposits.aggregate(Sum('ngn_amount'))['ngn_amount__sum'] or Decimal('0.00')
+    
+    withdrawals = Withdrawal.objects.filter(status=WithdrawalStatus.SUCCESS)
+    total_system_withdrawals = withdrawals.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    
+    return AdminDashboardStatsSchema(
+        total_users=total_users,
+        total_kyc_pending=total_kyc_pending,
+        total_system_ngn_balance=total_ngn_balance,
+        total_system_deposits=total_system_deposits,
+        total_system_withdrawals=total_system_withdrawals
     )

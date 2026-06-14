@@ -6,7 +6,7 @@ import httpx
 from django.conf import settings
 from django.utils import timezone
 
-from .models import CachedRate, ASSET_TO_COINGECKO_ID, COINGECKO_ID_TO_ASSET, AssetChoices
+from .models import CachedRate, ASSET_TO_COINGECKO_ID, COINGECKO_ID_TO_ASSET, AssetChoices, SystemSettings
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,8 @@ class RateService:
     @staticmethod
     def get_margin_percentage() -> Decimal:
         """Get the platform conversion margin percentage from settings."""
-        return Decimal(str(
-            getattr(settings, 'CONVERSION_MARGIN_PERCENTAGE', 2.0)
-        ))
+        settings_obj = SystemSettings.get_settings()
+        return settings_obj.conversion_margin_percentage
 
     @staticmethod
     def get_user_rate(asset: str) -> Decimal:

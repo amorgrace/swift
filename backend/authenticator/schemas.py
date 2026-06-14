@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional
+from decimal import Decimal
 
 
 class UserRegisterSchema(BaseModel):
@@ -88,3 +89,10 @@ class VerifyEmailSchema(BaseModel):
 class ResendVerificationSchema(BaseModel):
     """Schema for requesting a new email verification code"""
     email: EmailStr = Field(..., examples=["john@example.com"])
+
+class AdminUserResponseSchema(UserResponseSchema):
+    """Extended user schema for Admin dashboard"""
+    kyc_status: Optional[str] = None
+    ngn_balance: Decimal
+    is_staff: bool
+    is_active: bool

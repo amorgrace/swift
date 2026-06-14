@@ -14,3 +14,10 @@ class KYCResponseSchema(BaseModel):
     document_number: str
     rejection_reason: Optional[str] = None
     created_at: str
+
+class AdminKYCResponseSchema(KYCResponseSchema):
+    id: str
+    user_id: str
+    user_email: str
+    user_full_name: str
+    document_url: str

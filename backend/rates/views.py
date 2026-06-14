@@ -2,9 +2,9 @@ from ninja import Router
 from ninja.errors import HttpError
 from django_ratelimit.decorators import ratelimit
 
-from .schemas import RateResponseSchema
+from .schemas import RateResponseSchema, SystemSettingsSchema
 from .services import RateService
-from .models import AssetChoices
+from .models import AssetChoices, SystemSettings
 
 router = Router(tags=['Rates'])
 
@@ -65,3 +65,23 @@ def get_asset_rate(request, asset: str):
         raise HttpError(400, str(e))
     except Exception as e:
         raise HttpError(500, f'Failed to fetch rate: {str(e)}')
+
+
+@router.get('/admin/settings', response=SystemSettingsSchema)
+def get_system_settings(request):
+    """Get system settings (Admin only)."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    return SystemSettings.get_settings()
+
+
+@router.post('/admin/settings', response=SystemSettingsSchema)
+def update_system_settings(request, payload: SystemSettingsSchema):
+    """Update system settings (Admin only)."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    
+    settings = SystemSettings.get_settings()
+    settings.conversion_margin_percentage = payload.conversion_margin_percentage
+    settings.save()
+    return settings

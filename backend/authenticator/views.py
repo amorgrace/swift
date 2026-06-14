@@ -12,7 +12,9 @@ from .schemas import (
     LogoutSchema,
     VerifyEmailSchema,
     ResendVerificationSchema,
+    AdminUserResponseSchema,
 )
+from decimal import Decimal
 from .services import AuthenticationService
 
 User = get_user_model()
@@ -202,4 +204,42 @@ def deactivate_account(request):
         return {"message": "Account deactivated successfully."}
     except Exception as e:
         raise HttpError(500, f"Failed to deactivate account: {str(e)}")
+
+
+@router.get("/admin/users", response=list[AdminUserResponseSchema])
+def get_all_users(request):
+    """Admin endpoint to list all users with balances and KYC statuses."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    
+    users = User.objects.all().prefetch_related('kyc_verifications')
+    
+    result = []
+    for user in users:
+        # Get balance
+        balance = Decimal('0.00')
+        if hasattr(user, 'wallet'):
+            balance = user.wallet.balance
+            
+        # Get latest KYC status
+        kyc_status = None
+        latest_kyc = user.kyc_verifications.order_by('-created_at').first()
+        if latest_kyc:
+            kyc_status = latest_kyc.status
+            
+        result.append(AdminUserResponseSchema(
+            id=str(user.id),
+            full_name=user.full_name,
+            email=user.email,
+            phone_number=user.phone_number,
+            created_at=user.created_at.isoformat(),
+            updated_at=user.updated_at.isoformat(),
+            last_login=user.last_login.isoformat() if user.last_login else None,
+            kyc_status=kyc_status,
+            ngn_balance=balance,
+            is_staff=user.is_staff,
+            is_active=user.is_active
+        ))
+        
+    return result
 

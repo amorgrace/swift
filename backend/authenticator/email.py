@@ -195,6 +195,19 @@ def send_withdrawal_failed_email(user, amount: str, bank_name: str) -> bool:
 # KYC email helpers
 # -------------------------------------------------------------------
 
+def send_kyc_submitted_email(user) -> bool:
+    """Send an email when KYC is submitted."""
+    return send_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        subject="SwiftTrade – KYC Submitted",
+        template_name="emails/kyc_submitted.html",
+        context={
+            "full_name": user.full_name,
+            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p UTC"),
+        },
+    )
+
 def send_kyc_approved_email(user) -> bool:
     """Send an email when KYC is approved."""
     return send_email(

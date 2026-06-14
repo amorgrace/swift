@@ -3,9 +3,13 @@ from ninja.errors import HttpError
 
 from pydantic import BaseModel
 
-from .schemas import KYCSubmissionSchema, KYCResponseSchema
+from .schemas import KYCSubmissionSchema, KYCResponseSchema, AdminKYCResponseSchema
 from .models import KYCVerification, KYCStatus, DocumentType
-from authenticator.email import send_kyc_approved_email, send_kyc_rejected_email
+from authenticator.email import (
+    send_kyc_approved_email, 
+    send_kyc_rejected_email,
+    send_kyc_submitted_email
+)
 
 router = Router(tags=['KYC'])
 
@@ -45,6 +49,9 @@ def submit_kyc(request, payload: KYCSubmissionSchema):
             status=KYCStatus.SUBMITTED,
         )
 
+    # Send Email
+    send_kyc_submitted_email(user=request.user)
+
     return KYCResponseSchema(
         status=kyc.status,
         document_type=kyc.document_type,
@@ -52,6 +59,32 @@ def submit_kyc(request, payload: KYCSubmissionSchema):
         rejection_reason=kyc.rejection_reason,
         created_at=kyc.created_at.isoformat()
     )
+
+
+@router.get('/admin/all', response=list[AdminKYCResponseSchema])
+def get_all_kyc_requests(request):
+    """Admin endpoint to list all KYC requests."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    
+    kycs = KYCVerification.objects.all().select_related('user').order_by('-created_at')
+    
+    result = []
+    for kyc in kycs:
+        result.append(AdminKYCResponseSchema(
+            id=str(kyc.id),
+            status=kyc.status,
+            document_type=kyc.document_type,
+            document_number=kyc.document_number,
+            rejection_reason=kyc.rejection_reason,
+            created_at=kyc.created_at.isoformat(),
+            user_id=str(kyc.user.id),
+            user_email=kyc.user.email,
+            user_full_name=kyc.user.full_name,
+            document_url=kyc.document_url
+        ))
+        
+    return result
 
 
 @router.get('/status', response=KYCResponseSchema)

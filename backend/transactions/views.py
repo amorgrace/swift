@@ -11,6 +11,7 @@ from .schemas import (
     WithdrawalRequestSchema,
     WithdrawalSchema,
     TransactionSchema,
+    AdminTransactionSchema,
     DepositSchema,
     DashboardStatsSchema
 )
@@ -91,6 +92,61 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             coin=coin,
             network=network,
             crypto_amount=crypto_amount
+        ))
+
+    return results
+
+
+@router.get('/admin/all', response=List[AdminTransactionSchema])
+@paginate(PageNumberPagination, page_size=50)
+def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query(...)):
+    """Admin endpoint to list all transactions globally."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+        
+    qs = Transaction.objects.select_related(
+        'wallet__user',
+        'related_deposit',
+        'related_withdrawal__bank_account'
+    ).order_by('-created_at')
+    
+    if filters.type:
+        qs = qs.filter(type=filters.type)
+
+    results = []
+    for t in qs:
+        mapped_type = 'trade' if t.type == TransactionType.DEPOSIT else 'withdrawal'
+        
+        bank = None
+        coin = None
+        network = None
+        crypto_amount = None
+        
+        if t.type == TransactionType.DEPOSIT and t.related_deposit:
+            d = t.related_deposit
+            coin = d.asset.upper()
+            network = d.network
+            crypto_amount = d.crypto_amount
+        elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
+            w = t.related_withdrawal
+            acc_num = w.bank_account.account_number
+            masked = acc_num[-4:] if len(acc_num) >= 4 else acc_num
+            bank = f"{w.bank_account.bank_name} ••{masked}"
+            
+        results.append(AdminTransactionSchema(
+            id=t.id,
+            type=mapped_type,
+            amount=t.amount,
+            description=t.description,
+            status=t.status.lower(),
+            created_at=t.created_at.isoformat(),
+            ref=t.reference,
+            bank=bank,
+            coin=coin,
+            network=network,
+            crypto_amount=crypto_amount,
+            user_email=t.wallet.user.email,
+            user_full_name=t.wallet.user.full_name
         ))
 
     return results

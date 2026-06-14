@@ -13,3 +13,6 @@ class RateResponseSchema(BaseModel):
     user_ngn_usd_rate: Optional[Decimal] = None
     margin_percentage: Decimal
     updated_at: Optional[str] = None
+
+class SystemSettingsSchema(BaseModel):
+    conversion_margin_percentage: Decimal

@@ -55,3 +55,29 @@ class CachedRate(models.Model):
 
     def __str__(self):
         return f"{self.get_asset_display()}: ₦{self.rate_ngn:,.2f}"
+
+
+class SystemSettings(models.Model):
+    """
+    Stores global system configuration that admins can update dynamically.
+    Enforces a single-row design.
+    """
+    conversion_margin_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=2.0,
+        help_text='Platform margin percentage taken on conversions (e.g. 2.0 = 2%)'
+    )
+    
+    class Meta:
+        db_table = 'system_settings'
+        verbose_name = 'System Settings'
+        verbose_name_plural = 'System Settings'
+        
+    @classmethod
+    def get_settings(cls):
+        obj, created = cls.objects.get_or_create(id=1)
+        return obj
+
+    def __str__(self):
+        return f"System Settings (Margin: {self.conversion_margin_percentage}%)"
