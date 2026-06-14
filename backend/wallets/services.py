@@ -99,6 +99,16 @@ class QuidaxService:
         for asset, networks in ASSET_NETWORKS.items():
             for network in networks:
                 try:
+                    # Check if we already have it in the DB to avoid redundant API calls
+                    existing = DepositAddress.objects.filter(
+                        wallet=wallet, asset=asset, network=network.value
+                    ).first()
+                    
+                    if existing:
+                        addresses.append(existing)
+                        continue
+
+                    # Otherwise, generate from Quidax
                     address_str = QuidaxService.generate_deposit_address(
                         quidax_user_id, asset, network.value,
                     )
@@ -310,7 +320,17 @@ class WalletService:
                 logger.error(f'Failed to setup Quidax sub-account: {e}')
 
         if wallet.quidax_user_id:
-            if not DepositAddress.objects.filter(wallet=wallet).exists():
+            # Check if any supported network is missing a DepositAddress
+            missing = False
+            for asset, networks in ASSET_NETWORKS.items():
+                for network in networks:
+                    if not DepositAddress.objects.filter(wallet=wallet, asset=asset, network=network.value).exists():
+                        missing = True
+                        break
+                if missing:
+                    break
+
+            if missing:
                 try:
                     QuidaxService.generate_all_addresses(wallet.quidax_user_id, wallet)
                 except Exception as e:
