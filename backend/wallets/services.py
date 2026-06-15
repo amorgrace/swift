@@ -52,11 +52,32 @@ class QuidaxService:
                     json=payload,
                     headers=QuidaxService._get_headers(),
                 )
+                
+                # Check for "email already exists"
+                if response.status_code == 400:
+                    error_msg = str(response.text).lower()
+                    if "already exists" in error_msg:
+                        import secrets
+                        parts = user.email.split('@')
+                        if len(parts) == 2:
+                            payload['email'] = f"{parts[0]}+{secrets.token_hex(4)}@{parts[1]}"
+                        else:
+                            payload['email'] = f"{user.email}+{secrets.token_hex(4)}@swift.internal"
+                        
+                        response = client.post(
+                            url,
+                            json=payload,
+                            headers=QuidaxService._get_headers(),
+                        )
+
                 response.raise_for_status()
                 data = response.json()
                 quidax_user_id = data.get('data', {}).get('id', '')
-                logger.info(f'Created Quidax sub-account for {user.email}: {quidax_user_id}')
+                logger.info(f'Created Quidax sub-account for {payload["email"]}: {quidax_user_id}')
                 return quidax_user_id
+        except httpx.HTTPStatusError as e:
+            logger.error(f'Quidax sub-account creation failed for {user.email}: {e}. Response: {e.response.text}')
+            raise ValueError(f'Failed to create Quidax sub-account: {e}')
         except httpx.HTTPError as e:
             logger.error(f'Quidax sub-account creation failed for {user.email}: {e}')
             raise ValueError(f'Failed to create Quidax sub-account: {e}')
@@ -77,7 +98,7 @@ class QuidaxService:
             with httpx.Client(timeout=15) as client:
                 response = client.post(
                     url,
-                    params=params,
+                    json=params,  # Quidax expects network in JSON body, not query params
                     headers=QuidaxService._get_headers(),
                 )
                 response.raise_for_status()
@@ -85,8 +106,11 @@ class QuidaxService:
                 address = data.get('data', {}).get('address', '')
                 logger.info(f'Generated {asset}/{network} address for {quidax_user_id}: {address}')
                 return address
+        except httpx.HTTPStatusError as e:
+            logger.error(f'Quidax address generation failed for {asset}/{network}: {e}. Response: {e.response.text}')
+            raise ValueError(f'Failed to generate deposit address: {e}')
         except httpx.HTTPError as e:
-            logger.error(f'Quidax address generation failed: {e}')
+            logger.error(f'Quidax address generation failed for {asset}/{network}: {e}')
             raise ValueError(f'Failed to generate deposit address: {e}')
 
     @staticmethod
@@ -126,12 +150,37 @@ class QuidaxService:
     @staticmethod
     def verify_webhook_signature(request) -> bool:
         """
-        Verify the authenticity of a Quidax webhook request.
-        TODO: Implement signature verification once Quidax provides HMAC details.
+        Verify the authenticity of a Quidax webhook request using HMAC SHA256.
         """
-        # Placeholder — implement with actual Quidax signature verification
-        logger.warning('Quidax webhook signature verification not yet implemented')
-        return True
+        import hashlib
+        import hmac
+
+        secret_key = getattr(settings, 'QUIDAX_WEBHOOK_SECRET', '')
+        if not secret_key:
+            logger.warning('QUIDAX_WEBHOOK_SECRET not set, skipping signature verification')
+            return True
+
+        signature = request.headers.get('quidax-signature') or request.headers.get('x-quidax-signature') or ''
+        if not signature:
+            return False
+
+        body = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
+        timestamp = request.headers.get('quidax-timestamp') or request.headers.get('x-quidax-timestamp')
+
+        signing_payloads = [body]
+        if timestamp:
+            signing_payloads.insert(0, f"{timestamp}.{body}")
+
+        for payload in signing_payloads:
+            expected = hmac.new(
+                secret_key.encode('utf-8'),
+                payload.encode('utf-8'),
+                hashlib.sha256,
+            ).hexdigest()
+            if hmac.compare_digest(expected, signature):
+                return True
+                
+        return False
 
 
 class PaystackService:
