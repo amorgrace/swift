@@ -288,3 +288,55 @@ class AuthenticationService:
 
         # Re-use the existing token generation + email sending logic
         AuthenticationService.generate_email_verification_token(email)
+
+    @staticmethod
+    def generate_pin_update_token(user: User) -> Optional[str]:
+        """Generate a 6-digit PIN update token and send email."""
+        from django.utils import timezone
+        import secrets
+        from datetime import timedelta
+        from .models import PinUpdateToken
+        from .email import send_pin_update_email
+
+        # Invalidate old tokens
+        PinUpdateToken.objects.filter(user=user).delete()
+        
+        # Generate new 6-digit token
+        token_val = "".join(str(secrets.randbelow(10)) for _ in range(6))
+        
+        PinUpdateToken.objects.create(
+            user=user,
+            token=token_val,
+            expires_at=timezone.now() + timedelta(minutes=15)
+        )
+
+        try:
+            success = send_pin_update_email(user, token_val)
+            if not success:
+                raise ValueError("Failed to send PIN update email. Please try again later.")
+        except AnymailError as e:
+            logger.error("Anymail error sending PIN update email to %s: %s", user.email, e)
+            raise ValueError("Failed to send PIN update email. Email service temporarily unavailable.")
+        except Exception as e:
+            logger.error("Error sending PIN update email to %s: %s", user.email, e)
+            raise ValueError(f"Failed to send PIN update email: {str(e)}")
+
+        return token_val
+
+    @staticmethod
+    def verify_pin_update_token(user: User, token: str) -> bool:
+        """Verify token for PIN update."""
+        from django.utils import timezone
+        from .models import PinUpdateToken
+
+        try:
+            pin_token = PinUpdateToken.objects.get(user=user, token=token)
+        except PinUpdateToken.DoesNotExist:
+            raise ValueError("Invalid or missing access code.")
+
+        if pin_token.expires_at < timezone.now():
+            pin_token.delete()
+            raise ValueError("Access code has expired. Please request a new one.")
+
+        pin_token.delete()
+        return True

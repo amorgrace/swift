@@ -57,3 +57,4 @@ class BankListSchema(BaseModel):
 class SetTransactionPinSchema(BaseModel):
     """Schema for setting or updating transaction PIN."""
     pin: str = Field(..., min_length=4, max_length=4, examples=["1234"])
+    otp: Optional[str] = Field(None, description="6-digit OTP required if PIN is already set")

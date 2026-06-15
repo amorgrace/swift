@@ -85,3 +85,18 @@ class EmailVerificationToken(models.Model):
 
     def __str__(self):
         return f"Verification Token for {self.user.email}"
+
+class PinUpdateToken(models.Model):
+    """Stores 6-digit token for transaction PIN update"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pin_update_tokens')
+    token = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'pin_update_tokens'
+        verbose_name = 'PIN Update Token'
+        verbose_name_plural = 'PIN Update Tokens'
+
+    def __str__(self):
+        return f"PIN Update Token for {self.user.email}"

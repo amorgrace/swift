@@ -140,6 +140,20 @@ def send_password_changed_email(user) -> bool:
         },
     )
 
+
+def send_pin_update_email(user, token: str) -> bool:
+    """Send the 6-digit PIN update code."""
+    return send_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        subject="SwiftTrade – Transaction PIN Update Code",
+        template_name="emails/pin_update.html",
+        context={
+            "full_name": user.full_name,
+            "token": token,
+        },
+    )
+
 # -------------------------------------------------------------------
 # Transaction email helpers
 # -------------------------------------------------------------------

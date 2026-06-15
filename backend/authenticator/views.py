@@ -1,5 +1,6 @@
 from ninja import Router
 from ninja.errors import HttpError
+from django_ratelimit.decorators import ratelimit
 from django.contrib.auth import get_user_model
 from .schemas import (
 	UserRegisterSchema,
@@ -24,6 +25,7 @@ router = Router(tags=["Authentication"])
 
 
 @router.post("/register", response={200: dict}, auth=None)
+@ratelimit(key='ip', rate='10/h', block=True)
 def register(request, payload: UserRegisterSchema):
 	try:
 		user = AuthenticationService.create_user(
@@ -42,6 +44,7 @@ def register(request, payload: UserRegisterSchema):
 
 
 @router.post("/verify-email", response=AuthTokenResponseSchema, auth=None)
+@ratelimit(key='ip', rate='15/m', block=True)
 def verify_email(request, payload: VerifyEmailSchema):
     try:
         success = AuthenticationService.verify_email_token(
@@ -71,6 +74,7 @@ def verify_email(request, payload: VerifyEmailSchema):
 
 
 @router.post("/login", response=AuthTokenResponseSchema, auth=None)
+@ratelimit(key='ip', rate='10/m', block=True)
 def login(request, payload: UserLoginSchema):
 	try:
 		user = AuthenticationService.authenticate_user(
@@ -118,6 +122,7 @@ def get_current_user(request):
 	)
 
 @router.post("/forget-password", response={200: dict}, auth=None)
+@ratelimit(key='ip', rate='5/h', block=True)
 def forget_password(request, payload: ForgotPasswordSchema):
     try:
         token = AuthenticationService.generate_password_reset_token(payload.email)
@@ -127,6 +132,7 @@ def forget_password(request, payload: ForgotPasswordSchema):
         raise HttpError(500, f"Failed to process request: {str(e)}")
 
 @router.post("/reset-password", response={200: dict}, auth=None)
+@ratelimit(key='ip', rate='15/m', block=True)
 def reset_password(request, payload: ResetPasswordSchema):
     try:
         success = AuthenticationService.reset_password_with_token(
@@ -142,6 +148,7 @@ def reset_password(request, payload: ResetPasswordSchema):
         raise HttpError(500, f"Reset failed: {str(e)}")
 
 @router.post("/change-password", response={200: dict})
+@ratelimit(key='user', rate='10/h', block=True)
 def change_password(request, payload: ChangePasswordSchema):
     if not request.user or not request.user.is_authenticated:
         raise HttpError(401, "Not authenticated")
@@ -170,6 +177,7 @@ def logout(request, payload: LogoutSchema):
         raise HttpError(400, f"Logout failed: {str(e)}")
 
 @router.post("/resend-reset-token", response={200: dict}, auth=None)
+@ratelimit(key='ip', rate='5/h', block=True)
 def resend_reset_token(request, payload: ForgotPasswordSchema):
     try:
         token = AuthenticationService.generate_password_reset_token(payload.email)
@@ -179,6 +187,7 @@ def resend_reset_token(request, payload: ForgotPasswordSchema):
 
 
 @router.post("/resend-verification", response={200: dict}, auth=None)
+@ratelimit(key='ip', rate='5/h', block=True)
 def resend_verification_email(request, payload: ResendVerificationSchema):
     """
     Resend the email verification code to the given email address.

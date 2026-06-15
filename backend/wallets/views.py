@@ -14,6 +14,7 @@ from .schemas import (
 )
 from .services import WalletService, PaystackService
 from .models import BankAccount, NGNWallet
+from authenticator.services import AuthenticationService
 from django_ratelimit.decorators import ratelimit
 
 router = Router(tags=['Wallets'])
@@ -134,13 +135,33 @@ def set_default_bank_account(request, account_id: int):
 
 
 
+@router.post('/transaction-pin/request-update', response={200: dict})
+@ratelimit(key='user', rate='3/h', block=True)
+def request_pin_update_otp(request):
+    """Send a 6-digit access code to the user's email to authorize a PIN change."""
+    try:
+        AuthenticationService.generate_pin_update_token(request.user)
+        return {'message': 'Access code sent to your email.'}
+    except ValueError as e:
+        raise HttpError(400, str(e))
+    except Exception as e:
+        raise HttpError(500, str(e))
+
+
 @router.post('/transaction-pin', response={200: dict})
 def set_transaction_pin(request, payload: SetTransactionPinSchema):
     """Set or update the 4-digit transaction PIN for withdrawals."""
     try:
         wallet = NGNWallet.objects.get(user=request.user)
+        
+        if wallet.pin_is_set:
+            if not payload.otp:
+                raise ValueError("An access code is required to change an existing PIN.")
+            # Verify the OTP
+            AuthenticationService.verify_pin_update_token(request.user, payload.otp)
+            
         wallet.set_transaction_pin(payload.pin)
-        return {'message': 'Transaction PIN set successfully'}
+        return {'message': 'Transaction PIN updated successfully'}
     except NGNWallet.DoesNotExist:
         raise HttpError(404, 'Wallet not found')
     except ValueError as e:
