@@ -54,7 +54,7 @@ class QuidaxService:
                 )
                 
                 # Check for "email already exists"
-                if response.status_code == 400:
+                if response.status_code in [400, 409]:
                     error_msg = str(response.text).lower()
                     if "already exists" in error_msg:
                         import secrets
