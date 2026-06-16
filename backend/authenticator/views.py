@@ -16,6 +16,10 @@ from .schemas import (
     AdminUserResponseSchema,
     AdminAuthTokenResponseSchema,
 )
+from pydantic import BaseModel
+from typing import Optional
+from ninja import Query
+from django.db.models import Q
 from decimal import Decimal
 from .services import AuthenticationService
 
@@ -260,13 +264,24 @@ def deactivate_account(request):
         raise HttpError(500, f"Failed to deactivate account: {str(e)}")
 
 
+from ninja.pagination import paginate, PageNumberPagination
+
+class UserFilterSchema(BaseModel):
+    search: Optional[str] = None
+
 @router.get("/admin/users", response=list[AdminUserResponseSchema])
-def get_all_users(request):
+@paginate(PageNumberPagination, page_size=15)
+def get_all_users(request, filters: UserFilterSchema = Query(...)):
     """Admin endpoint to list all users with balances and KYC statuses."""
     if not request.user.is_staff:
         raise HttpError(403, "Permission denied.")
     
-    users = User.objects.all().select_related('kyc', 'ngn_wallet')
+    users = User.objects.all().select_related('kyc', 'ngn_wallet').order_by('-date_joined')
+    
+    if filters.search:
+        users = users.filter(
+            Q(full_name__icontains=filters.search) | Q(email__icontains=filters.search)
+        )
     
     result = []
     for user in users:
