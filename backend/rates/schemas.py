@@ -16,3 +16,37 @@ class RateResponseSchema(BaseModel):
 
 class SystemSettingsSchema(BaseModel):
     conversion_margin_percentage: Decimal
+
+class GiftCardSchema(BaseModel):
+    id: int
+    brand: str
+    category: str
+    color: str
+    bg: str
+    denominations: list[str]
+    rates: dict[str, float]
+    rate_per_dollar: Decimal
+    country: str
+    popular: bool
+
+class GiftCardCreateSchema(BaseModel):
+    brand: str
+    category: str
+    color: str = "#FFFFFF"
+    bg: str = "linear-gradient(135deg, #1a1a1a, #000000)"
+    denominations: list[str] = []
+    rates: dict[str, float] = {}
+    rate_per_dollar: Decimal
+    country: str
+    popular: bool = False
+
+class GiftCardUpdateSchema(BaseModel):
+    brand: Optional[str] = None
+    category: Optional[str] = None
+    color: Optional[str] = None
+    bg: Optional[str] = None
+    denominations: Optional[list[str]] = None
+    rates: Optional[dict[str, float]] = None
+    rate_per_dollar: Optional[Decimal] = None
+    country: Optional[str] = None
+    popular: Optional[bool] = None

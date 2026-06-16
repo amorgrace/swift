@@ -2,9 +2,11 @@ from ninja import Router
 from ninja.errors import HttpError
 from django_ratelimit.decorators import ratelimit
 
-from .schemas import RateResponseSchema, SystemSettingsSchema
+from django.shortcuts import get_object_or_404
+
+from .schemas import RateResponseSchema, SystemSettingsSchema, GiftCardSchema, GiftCardCreateSchema, GiftCardUpdateSchema
 from .services import RateService
-from .models import AssetChoices, SystemSettings
+from .models import AssetChoices, SystemSettings, GiftCard
 
 router = Router(tags=['Rates'])
 
@@ -85,3 +87,36 @@ def update_system_settings(request, payload: SystemSettingsSchema):
     settings.conversion_margin_percentage = payload.conversion_margin_percentage
     settings.save()
     return settings
+
+@router.get('/giftcards', response=list[GiftCardSchema], auth=None)
+def get_all_giftcards(request):
+    """Get all gift card configurations."""
+    return GiftCard.objects.all()
+
+@router.post('/admin/giftcards', response=GiftCardSchema)
+def create_giftcard(request, payload: GiftCardCreateSchema):
+    """Create a new gift card configuration (Admin only)."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    giftcard = GiftCard.objects.create(**payload.dict())
+    return giftcard
+
+@router.put('/admin/giftcards/{giftcard_id}', response=GiftCardSchema)
+def update_giftcard(request, giftcard_id: int, payload: GiftCardUpdateSchema):
+    """Update a gift card configuration (Admin only)."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    giftcard = get_object_or_404(GiftCard, id=giftcard_id)
+    for attr, value in payload.dict(exclude_unset=True).items():
+        setattr(giftcard, attr, value)
+    giftcard.save()
+    return giftcard
+
+@router.delete('/admin/giftcards/{giftcard_id}')
+def delete_giftcard(request, giftcard_id: int):
+    """Delete a gift card configuration (Admin only)."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    giftcard = get_object_or_404(GiftCard, id=giftcard_id)
+    giftcard.delete()
+    return {"success": True}

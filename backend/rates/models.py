@@ -81,3 +81,22 @@ class SystemSettings(models.Model):
 
     def __str__(self):
         return f"System Settings (Margin: {self.conversion_margin_percentage}%)"
+
+class GiftCard(models.Model):
+    brand = models.CharField(max_length=100)
+    category = models.CharField(max_length=100)
+    color = models.CharField(max_length=50, default="#FFFFFF")
+    bg = models.CharField(max_length=255, default="linear-gradient(135deg, #1a1a1a, #000000)")
+    denominations = models.JSONField(default=list)
+    rates = models.JSONField(default=dict)
+    rate_per_dollar = models.DecimalField(max_digits=10, decimal_places=2)
+    country = models.CharField(max_length=50)
+    popular = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'gift_cards'
+        verbose_name = 'Gift Card'
+        verbose_name_plural = 'Gift Cards'
+
+    def __str__(self):
+        return f"{self.brand} ({self.country})"
