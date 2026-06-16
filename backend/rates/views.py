@@ -91,7 +91,11 @@ def update_system_settings(request, payload: SystemSettingsSchema):
 @router.get('/giftcards', response=list[GiftCardSchema], auth=None)
 def get_all_giftcards(request):
     """Get all gift card configurations."""
-    return GiftCard.objects.all()
+    cards = GiftCard.objects.all().values(
+        'id', 'brand', 'category', 'color', 'bg',
+        'denominations', 'rates', 'rate_per_dollar', 'country', 'popular'
+    )
+    return list(cards)
 
 @router.post('/admin/giftcards', response=GiftCardSchema)
 def create_giftcard(request, payload: GiftCardCreateSchema):
@@ -99,7 +103,10 @@ def create_giftcard(request, payload: GiftCardCreateSchema):
     if not request.user.is_staff:
         raise HttpError(403, "Permission denied.")
     giftcard = GiftCard.objects.create(**payload.dict())
-    return giftcard
+    return GiftCard.objects.filter(id=giftcard.id).values(
+        'id', 'brand', 'category', 'color', 'bg',
+        'denominations', 'rates', 'rate_per_dollar', 'country', 'popular'
+    ).first()
 
 @router.put('/admin/giftcards/{giftcard_id}', response=GiftCardSchema)
 def update_giftcard(request, giftcard_id: int, payload: GiftCardUpdateSchema):
@@ -110,7 +117,10 @@ def update_giftcard(request, giftcard_id: int, payload: GiftCardUpdateSchema):
     for attr, value in payload.dict(exclude_unset=True).items():
         setattr(giftcard, attr, value)
     giftcard.save()
-    return giftcard
+    return GiftCard.objects.filter(id=giftcard.id).values(
+        'id', 'brand', 'category', 'color', 'bg',
+        'denominations', 'rates', 'rate_per_dollar', 'country', 'popular'
+    ).first()
 
 @router.delete('/admin/giftcards/{giftcard_id}')
 def delete_giftcard(request, giftcard_id: int):
