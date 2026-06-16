@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel
+from ninja import Schema
 
 
 class RateResponseSchema(BaseModel):
@@ -17,7 +18,7 @@ class RateResponseSchema(BaseModel):
 class SystemSettingsSchema(BaseModel):
     conversion_margin_percentage: Decimal
 
-class GiftCardSchema(BaseModel):
+class GiftCardSchema(Schema):
     id: int
     brand: str
     category: str
@@ -29,7 +30,7 @@ class GiftCardSchema(BaseModel):
     country: str
     popular: bool
 
-class GiftCardCreateSchema(BaseModel):
+class GiftCardCreateSchema(Schema):
     brand: str
     category: str
     color: str = "#FFFFFF"
@@ -40,7 +41,7 @@ class GiftCardCreateSchema(BaseModel):
     country: str
     popular: bool = False
 
-class GiftCardUpdateSchema(BaseModel):
+class GiftCardUpdateSchema(Schema):
     brand: Optional[str] = None
     category: Optional[str] = None
     color: Optional[str] = None
