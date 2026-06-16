@@ -14,6 +14,7 @@ from .schemas import (
     VerifyEmailSchema,
     ResendVerificationSchema,
     AdminUserResponseSchema,
+    AdminAuthTokenResponseSchema,
 )
 from decimal import Decimal
 from .services import AuthenticationService
@@ -97,6 +98,50 @@ def login(request, payload: UserLoginSchema):
 		)
 
 		return AuthTokenResponseSchema(
+			access=tokens["access"], refresh=tokens.get("refresh"), user=user_data
+		)
+
+	except HttpError:
+		raise
+	except Exception as e:
+		raise HttpError(500, f"Login failed: {str(e)}")
+
+
+@router.post("/admin/login", response=AdminAuthTokenResponseSchema, auth=None)
+@ratelimit(key='ip', rate='10/m', block=True)
+def admin_login(request, payload: UserLoginSchema):
+	try:
+		user = AuthenticationService.authenticate_user(
+			email=payload.email, password=payload.password
+		)
+
+		if not user:
+			raise HttpError(401, "Invalid email or password")
+            
+		if not user.is_staff:
+			raise HttpError(403, "Permission denied. Admin access only.")
+
+		tokens = AuthenticationService.get_tokens_for_user(user)
+
+		balance = Decimal('0.00')
+		if hasattr(user, 'ngn_wallet'):
+			balance = user.ngn_wallet.balance
+
+		user_data = AdminUserResponseSchema(
+			id=str(user.id),
+			full_name=user.full_name,
+			email=user.email,
+			phone_number=user.phone_number,
+			created_at=user.created_at.isoformat(),
+			updated_at=user.updated_at.isoformat(),
+			last_login=user.last_login.isoformat() if user.last_login else None,
+			kyc_status=user.kyc.status if hasattr(user, 'kyc') else None,
+			ngn_balance=balance,
+			is_staff=user.is_staff,
+			is_active=user.is_active
+		)
+
+		return AdminAuthTokenResponseSchema(
 			access=tokens["access"], refresh=tokens.get("refresh"), user=user_data
 		)
 
@@ -221,20 +266,19 @@ def get_all_users(request):
     if not request.user.is_staff:
         raise HttpError(403, "Permission denied.")
     
-    users = User.objects.all().prefetch_related('kyc_verifications')
+    users = User.objects.all().select_related('kyc', 'ngn_wallet')
     
     result = []
     for user in users:
         # Get balance
         balance = Decimal('0.00')
-        if hasattr(user, 'wallet'):
-            balance = user.wallet.balance
+        if hasattr(user, 'ngn_wallet'):
+            balance = user.ngn_wallet.balance
             
         # Get latest KYC status
         kyc_status = None
-        latest_kyc = user.kyc_verifications.order_by('-created_at').first()
-        if latest_kyc:
-            kyc_status = latest_kyc.status
+        if hasattr(user, 'kyc'):
+            kyc_status = user.kyc.status
             
         result.append(AdminUserResponseSchema(
             id=str(user.id),

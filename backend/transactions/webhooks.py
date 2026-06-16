@@ -16,9 +16,10 @@ router = Router(tags=['Webhooks'])
 def quidax_webhook(request):
     """Webhook endpoint for Quidax events (e.g., crypto deposits)."""
     
-    # In a real scenario, you'd verify the Quidax signature here
-    # if not QuidaxService.verify_webhook_signature(request):
-    #     raise HttpError(401, "Invalid signature")
+    # Verify Quidax signature
+    if not QuidaxService.verify_webhook_signature(request):
+        logger.warning("Invalid Quidax webhook signature")
+        raise HttpError(401, "Invalid signature")
         
     try:
         payload = json.loads(request.body)

@@ -45,6 +45,12 @@ class AuthTokenResponseSchema(BaseModel):
     refresh: Optional[str] = None
     user: UserResponseSchema
 
+class AdminAuthTokenResponseSchema(BaseModel):
+    """Schema for admin authentication token response"""
+    access: str
+    refresh: Optional[str] = None
+    user: AdminUserResponseSchema
+
 class ForgotPasswordSchema(BaseModel):
     """Schema for requesting a password reset token"""
     email: EmailStr = Field(..., examples=["john@example.com"])
