@@ -106,13 +106,13 @@ class RateService:
     @staticmethod
     def get_user_rate(asset: str) -> Decimal:
         """
-        Get the rate the user actually receives (market rate minus margin).
-        If market rate is ₦1,600 and margin is 2%, user gets ₦1,568.
+        Get the rate the user is charged (market rate plus platform markup).
+        If market rate is ₦1,600 and margin is 2%, user pays ₦1,632.
         """
         market_rate = RateService.get_market_rate(asset)
         margin = RateService.get_margin_percentage()
-        discount = market_rate * (margin / Decimal('100'))
-        user_rate = (market_rate - discount).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        markup = market_rate * (margin / Decimal('100'))
+        user_rate = (market_rate + markup).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         return user_rate
 
     @staticmethod
@@ -160,15 +160,15 @@ class RateService:
                 market_rate = cached.rate_ngn
                 rate_usd = cached.rate_usd
 
-                discount = market_rate * (margin / Decimal('100'))
-                user_rate = (market_rate - discount).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                markup = market_rate * (margin / Decimal('100'))
+                user_rate = (market_rate + markup).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
                 market_ngn_usd_rate = None
                 user_ngn_usd_rate = None
                 if rate_usd and rate_usd > Decimal('0'):
                     market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-                    usd_discount = market_ngn_usd_rate * (margin / Decimal('100'))
-                    user_ngn_usd_rate = (market_ngn_usd_rate - usd_discount).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                    usd_markup = market_ngn_usd_rate * (margin / Decimal('100'))
+                    user_ngn_usd_rate = (market_ngn_usd_rate + usd_markup).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
                 results.append({
                     'asset': asset_code,
