@@ -108,9 +108,20 @@ class RateService:
         """
         Get the rate the user receives (market rate minus platform margin).
         If market rate is ₦1,600 and margin is 2%, user receives ₦1,568.
+        If ngn_usd_buy_rate is set > 0, we bypass margin and calculate based on asset's USD value * ngn_usd_buy_rate.
         """
+        settings_obj = SystemSettings.get_settings()
+        if settings_obj.ngn_usd_buy_rate > Decimal('0'):
+            # Convert the CoinGecko USD price directly to NGN
+            try:
+                cached = CachedRate.objects.get(asset=asset.lower())
+                if cached.rate_usd and cached.rate_usd > 0:
+                    return (cached.rate_usd * settings_obj.ngn_usd_buy_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+            except CachedRate.DoesNotExist:
+                pass
+            
         market_rate = RateService.get_market_rate(asset)
-        margin = RateService.get_margin_percentage()
+        margin = settings_obj.conversion_margin_percentage
         markdown = market_rate * (margin / Decimal('100'))
         user_rate = (market_rate - markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         return user_rate
@@ -160,15 +171,21 @@ class RateService:
                 market_rate = cached.rate_ngn
                 rate_usd = cached.rate_usd
 
-                markdown = market_rate * (margin / Decimal('100'))
-                user_rate = (market_rate - markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-
-                market_ngn_usd_rate = None
-                user_ngn_usd_rate = None
-                if rate_usd and rate_usd > Decimal('0'):
+                settings_obj = SystemSettings.get_settings()
+                if settings_obj.ngn_usd_buy_rate > Decimal('0') and rate_usd and rate_usd > Decimal('0'):
+                    user_rate = (rate_usd * settings_obj.ngn_usd_buy_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
                     market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-                    usd_markdown = market_ngn_usd_rate * (margin / Decimal('100'))
-                    user_ngn_usd_rate = (market_ngn_usd_rate - usd_markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                    user_ngn_usd_rate = settings_obj.ngn_usd_buy_rate
+                else:
+                    markdown = market_rate * (margin / Decimal('100'))
+                    user_rate = (market_rate - markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+                    market_ngn_usd_rate = None
+                    user_ngn_usd_rate = None
+                    if rate_usd and rate_usd > Decimal('0'):
+                        market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                        usd_markdown = market_ngn_usd_rate * (margin / Decimal('100'))
+                        user_ngn_usd_rate = (market_ngn_usd_rate - usd_markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
                 results.append({
                     'asset': asset_code,
@@ -176,7 +193,7 @@ class RateService:
                     'user_rate': user_rate,
                     'market_ngn_usd_rate': market_ngn_usd_rate,
                     'user_ngn_usd_rate': user_ngn_usd_rate,
-                    'margin_percentage': margin,
+                    'margin_percentage': margin if settings_obj.ngn_usd_buy_rate <= Decimal('0') else Decimal('0.00'),
                     'updated_at': cached.updated_at.isoformat(),
                 })
             except CachedRate.DoesNotExist:

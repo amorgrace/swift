@@ -68,6 +68,12 @@ class SystemSettings(models.Model):
         default=2.0,
         help_text='Platform margin percentage taken on conversions (e.g. 2.0 = 2%)'
     )
+    ngn_usd_buy_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text='If greater than 0, this explicit NGN/USD rate is used to calculate user payouts directly, ignoring the margin percentage.'
+    )
     
     class Meta:
         db_table = 'system_settings'

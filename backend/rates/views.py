@@ -75,7 +75,10 @@ def get_system_settings(request):
     if not request.user.is_staff:
         raise HttpError(403, "Permission denied.")
     settings = SystemSettings.get_settings()
-    return {"conversion_margin_percentage": settings.conversion_margin_percentage}
+    return {
+        "conversion_margin_percentage": settings.conversion_margin_percentage,
+        "ngn_usd_buy_rate": settings.ngn_usd_buy_rate
+    }
 
 
 @router.post('/admin/settings', response=SystemSettingsSchema)
@@ -86,9 +89,13 @@ def update_system_settings(request, payload: SystemSettingsSchema):
     
     settings = SystemSettings.get_settings()
     settings.conversion_margin_percentage = payload.conversion_margin_percentage
+    settings.ngn_usd_buy_rate = payload.ngn_usd_buy_rate
     settings.save()
     settings.refresh_from_db()
-    return {"conversion_margin_percentage": settings.conversion_margin_percentage}
+    return {
+        "conversion_margin_percentage": settings.conversion_margin_percentage,
+        "ngn_usd_buy_rate": settings.ngn_usd_buy_rate
+    }
 
 @router.get('/giftcards', response=list[GiftCardSchema], auth=None)
 def get_all_giftcards(request):

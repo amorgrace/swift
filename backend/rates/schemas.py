@@ -17,6 +17,7 @@ class RateResponseSchema(BaseModel):
 
 class SystemSettingsSchema(BaseModel):
     conversion_margin_percentage: Decimal
+    ngn_usd_buy_rate: Decimal
 
 class GiftCardSchema(Schema):
     id: int
