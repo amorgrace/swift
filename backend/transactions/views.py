@@ -13,7 +13,10 @@ from .schemas import (
     TransactionSchema,
     AdminTransactionSchema,
     DepositSchema,
-    DashboardStatsSchema
+    DashboardStatsSchema,
+    AdminWithdrawalSchema,
+    AdminApproveWithdrawalSchema,
+    AdminRejectWithdrawalSchema
 )
 from .services import WithdrawalService
 from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus, TransactionType
@@ -228,3 +231,84 @@ def get_dashboard_stats(request):
         deposit_count=deposit_count,
         withdrawal_count=withdrawal_count
     )
+
+@router.get('/admin/withdrawals', response=List[AdminWithdrawalSchema])
+@paginate(PageNumberPagination, page_size=20)
+def get_admin_withdrawals(request, status: str = None):
+    """Admin endpoint to list all withdrawals."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+        
+    qs = Withdrawal.objects.select_related('wallet__user', 'bank_account').order_by('-created_at')
+    
+    if status and status != 'all':
+        qs = qs.filter(status=status)
+
+    results = []
+    for w in qs:
+        results.append(AdminWithdrawalSchema(
+            id=w.id,
+            user_email=w.wallet.user.email,
+            user_id=w.wallet.user.id,
+            asset="NGN",
+            amount=w.amount,
+            status=w.status.lower(),
+            bank_name=w.bank_account.bank_name,
+            bank_account_name=w.bank_account.account_name,
+            bank_account_number=w.bank_account.account_number,
+            wallet_address="",
+            network="",
+            created_at=w.created_at.isoformat()
+        ))
+
+    return results
+
+@router.post('/admin/withdrawals/{withdrawal_id}/approve')
+def approve_withdrawal(request, withdrawal_id: int, payload: AdminApproveWithdrawalSchema):
+    """Admin endpoint to approve a withdrawal."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+        
+    try:
+        w = Withdrawal.objects.get(id=withdrawal_id)
+    except Withdrawal.DoesNotExist:
+        raise HttpError(404, "Withdrawal not found")
+        
+    if w.status != WithdrawalStatus.PENDING:
+        raise HttpError(400, f"Cannot approve withdrawal in {w.status} state")
+        
+    w.status = WithdrawalStatus.SUCCESS
+    w.save()
+    
+    # Also update transaction log if it exists
+    Transaction.objects.filter(related_withdrawal=w).update(status=WithdrawalStatus.SUCCESS)
+    
+    return {"message": "Withdrawal approved successfully"}
+
+@router.post('/admin/withdrawals/{withdrawal_id}/reject')
+def reject_withdrawal(request, withdrawal_id: int, payload: AdminRejectWithdrawalSchema):
+    """Admin endpoint to reject a withdrawal."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+        
+    try:
+        w = Withdrawal.objects.get(id=withdrawal_id)
+    except Withdrawal.DoesNotExist:
+        raise HttpError(404, "Withdrawal not found")
+        
+    if w.status != WithdrawalStatus.PENDING:
+        raise HttpError(400, f"Cannot reject withdrawal in {w.status} state")
+        
+    w.status = WithdrawalStatus.FAILED
+    w.save()
+    
+    # Update transaction log
+    Transaction.objects.filter(related_withdrawal=w).update(status=WithdrawalStatus.FAILED)
+    
+    # Refund wallet balance
+    wallet = w.wallet
+    wallet.balance += w.amount
+    wallet.save()
+    
+    return {"message": "Withdrawal rejected and refunded successfully"}
+

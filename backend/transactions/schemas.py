@@ -57,3 +57,24 @@ class DashboardStatsSchema(BaseModel):
     total_withdrawal_amount: Decimal
     deposit_count: int
     withdrawal_count: int
+
+class AdminWithdrawalSchema(BaseModel):
+    id: int
+    user_email: str
+    user_id: int
+    asset: str
+    amount: Decimal
+    status: str
+    bank_name: str
+    bank_account_name: str
+    bank_account_number: str
+    wallet_address: str
+    network: str
+    created_at: str
+
+class AdminApproveWithdrawalSchema(BaseModel):
+    admin_notes: Optional[str] = None
+
+class AdminRejectWithdrawalSchema(BaseModel):
+    rejection_reason: str
+    admin_notes: Optional[str] = None
