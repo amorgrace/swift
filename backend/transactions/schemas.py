@@ -72,9 +72,4 @@ class AdminWithdrawalSchema(BaseModel):
     network: str
     created_at: str
 
-class AdminApproveWithdrawalSchema(BaseModel):
-    admin_notes: Optional[str] = None
 
-class AdminRejectWithdrawalSchema(BaseModel):
-    rejection_reason: str
-    admin_notes: Optional[str] = None
