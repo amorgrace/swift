@@ -118,6 +118,17 @@ class DepositService:
                 ngn_amount=f"{ngn_amount:,.2f}"
             )
 
+            from notifications.telegram import TelegramNotifier
+            TelegramNotifier.deposit_received(
+                full_name=wallet.user.full_name,
+                email=wallet.user.email,
+                asset=asset,
+                crypto_amount=str(crypto_amount),
+                ngn_amount=f"{ngn_amount:,.2f}",
+                rate=f"{user_rate:,.2f}",
+                reference=quidax_reference,
+            )
+
             logger.info(f"Successfully processed deposit {quidax_reference} for wallet {wallet.id}")
             return True
 
@@ -221,6 +232,16 @@ class WithdrawalService:
             txn_log.status = WithdrawalStatus.PROCESSING
             txn_log.save()
 
+            from notifications.telegram import TelegramNotifier
+            TelegramNotifier.withdrawal_requested(
+                full_name=user.full_name,
+                email=user.email,
+                amount=f"{amount:,.2f}",
+                bank_name=bank_account.bank_name,
+                account_number=bank_account.account_number,
+                reference=withdrawal_ref,
+            )
+
         except Exception as e:
             logger.error(f"Paystack transfer initiation failed for {withdrawal_ref}: {e}")
             # If initiation fails completely, we should reverse the debit
@@ -277,6 +298,16 @@ class WithdrawalService:
                 account_number=withdrawal.bank_account.account_number
             )
 
+            from notifications.telegram import TelegramNotifier
+            TelegramNotifier.withdrawal_success(
+                full_name=withdrawal.wallet.user.full_name,
+                email=withdrawal.wallet.user.email,
+                amount=f"{withdrawal.amount:,.2f}",
+                bank_name=withdrawal.bank_account.bank_name,
+                account_number=withdrawal.bank_account.account_number,
+                reference=reference,
+            )
+
             logger.info(f"Withdrawal {reference} successful")
             return True
 
@@ -296,6 +327,16 @@ class WithdrawalService:
                 user=withdrawal.wallet.user,
                 amount=f"{withdrawal.amount:,.2f}",
                 bank_name=withdrawal.bank_account.bank_name
+            )
+
+            from notifications.telegram import TelegramNotifier
+            TelegramNotifier.withdrawal_failed(
+                full_name=withdrawal.wallet.user.full_name,
+                email=withdrawal.wallet.user.email,
+                amount=f"{withdrawal.amount:,.2f}",
+                bank_name=withdrawal.bank_account.bank_name,
+                reference=reference,
+                reason="Transfer failed" if event == 'transfer.failed' else "Transfer reversed",
             )
 
             logger.info(f"Withdrawal {reference} {status}, funds refunded.")

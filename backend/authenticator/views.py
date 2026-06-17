@@ -40,6 +40,12 @@ def register(request, payload: UserRegisterSchema):
 			phone_number=payload.phone_number,
 		)
 
+		from notifications.telegram import TelegramNotifier
+		TelegramNotifier.new_user_registered(
+			full_name=user.full_name,
+			email=user.email,
+		)
+
 		return {"message": "Verification email sent. Please check your inbox.", "email": user.email}
 
 	except ValueError as e:

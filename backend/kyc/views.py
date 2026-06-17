@@ -52,6 +52,14 @@ def submit_kyc(request, payload: KYCSubmissionSchema):
     # Send Email
     send_kyc_submitted_email(user=request.user)
 
+    from notifications.telegram import TelegramNotifier
+    TelegramNotifier.kyc_submitted(
+        full_name=request.user.full_name,
+        email=request.user.email,
+        document_type=kyc.document_type,
+        kyc_id=kyc.id,
+    )
+
     return KYCResponseSchema(
         status=kyc.status,
         document_type=kyc.document_type,
@@ -131,6 +139,13 @@ def approve_kyc(request, kyc_id: int):
         # Send Email
         send_kyc_approved_email(user=kyc.user)
 
+        from notifications.telegram import TelegramNotifier
+        TelegramNotifier.kyc_approved(
+            full_name=kyc.user.full_name,
+            email=kyc.user.email,
+            kyc_id=kyc.id,
+        )
+
         return KYCResponseSchema(
             status=kyc.status,
             document_type=kyc.document_type,
@@ -159,6 +174,14 @@ def reject_kyc(request, kyc_id: int, payload: KYCRejectSchema):
 
         # Send Email
         send_kyc_rejected_email(user=kyc.user, reason=payload.reason)
+
+        from notifications.telegram import TelegramNotifier
+        TelegramNotifier.kyc_rejected(
+            full_name=kyc.user.full_name,
+            email=kyc.user.email,
+            kyc_id=kyc.id,
+            reason=payload.reason,
+        )
 
         return KYCResponseSchema(
             status=kyc.status,
