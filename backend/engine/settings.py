@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'wallets',
     'transactions',
     'kyc',
+    'dashboard',
 ]
 
 MIDDLEWARE = [
