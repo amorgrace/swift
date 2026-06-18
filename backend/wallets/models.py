@@ -19,7 +19,7 @@ class NetworkChoices(models.TextChoices):
 ASSET_NETWORKS = {
     'btc': [NetworkChoices.BITCOIN],
     'eth': [NetworkChoices.ERC20],
-    'usdt': [NetworkChoices.TRC20, NetworkChoices.ERC20],
+    'usdt': [NetworkChoices.TRC20, NetworkChoices.ERC20, NetworkChoices.BEP20],
     'usdc': [NetworkChoices.ERC20],
     'sol': [NetworkChoices.SOLANA],
     'bnb': [NetworkChoices.BEP20],

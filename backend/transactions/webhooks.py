@@ -10,9 +10,9 @@ from wallets.services import PaystackService, QuidaxService
 logger = logging.getLogger(__name__)
 
 router = Router(tags=['Webhooks'])
+quidax_router = Router(tags=['Webhooks'])
 
-
-@router.post('/quidax', auth=None)
+@quidax_router.post('/webhook', auth=None)
 def quidax_webhook(request):
     """Webhook endpoint for Quidax events (e.g., crypto deposits)."""
     

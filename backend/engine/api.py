@@ -4,7 +4,7 @@ from authenticator.views import router as auth_router
 from rates.views import router as rates_router
 from wallets.views import router as wallets_router
 from transactions.views import router as transactions_router
-from transactions.webhooks import router as webhooks_router
+from transactions.webhooks import router as webhooks_router, quidax_router
 from kyc.views import router as kyc_router
 from dashboard.views import router as dashboard_router
 from django_ratelimit.exceptions import Ratelimited
@@ -23,6 +23,7 @@ api.add_router("rates/", rates_router)
 api.add_router("wallets/", wallets_router)
 api.add_router("transactions/", transactions_router)
 api.add_router("webhooks/", webhooks_router)
+api.add_router("quidax/", quidax_router)
 api.add_router("kyc/", kyc_router)
 api.add_router("dashboard/", dashboard_router)
 

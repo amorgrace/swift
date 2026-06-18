@@ -98,7 +98,7 @@ class QuidaxService:
             with httpx.Client(timeout=15) as client:
                 response = client.post(
                     url,
-                    json=params,  # Quidax expects network in JSON body, not query params
+                    params=params,  # Quidax expects network as a query param
                     headers=QuidaxService._get_headers(),
                 )
                 response.raise_for_status()
