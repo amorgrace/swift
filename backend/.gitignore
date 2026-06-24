@@ -20,3 +20,6 @@ db.sqlite3
 # IDE
 .vscode/
 .idea/
+
+# Docs
+secuirty.md

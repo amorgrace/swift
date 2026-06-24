@@ -218,3 +218,11 @@ LOGGING = {
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 
+# ---------------------------------------------------------------------------
+# Prembly
+# ---------------------------------------------------------------------------
+PREMBLY_API_KEY = os.environ.get('PREMBLY_API_KEY', '')
+PREMBLY_BASE_URL = os.environ.get('PREMBLY_BASE_URL', 'https://api.prembly.com')
+PREMBLY_LIVENESS_THRESHOLD = float(os.environ.get('PREMBLY_LIVENESS_THRESHOLD', '70'))
+PREMBLY_FACE_MATCH_THRESHOLD = float(os.environ.get('PREMBLY_FACE_MATCH_THRESHOLD', '70'))
+PREMBLY_MAX_SELFIE_RETRIES = int(os.environ.get('PREMBLY_MAX_SELFIE_RETRIES', '3'))

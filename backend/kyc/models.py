@@ -35,8 +35,25 @@ class KYCVerification(models.Model):
     )
     document_url = models.URLField(
         max_length=500,
+        blank=True,
         help_text='URL from Cloudinary/S3 containing the ID document image',
     )
+    selfie_url = models.URLField(
+        max_length=500,
+        blank=True,
+        help_text='Cloudinary URL of the user selfie for face matching',
+    )
+    prembly_id_photo = models.TextField(
+        blank=True,
+        help_text='Base64 photo from Prembly BVN/NIN response',
+    )
+    liveness_confidence = models.FloatField(null=True, blank=True)
+    face_match_confidence = models.FloatField(null=True, blank=True)
+    prembly_verified_name = models.CharField(max_length=255, blank=True)
+    date_of_birth = models.CharField(max_length=50, blank=True)
+    selfie_attempts = models.IntegerField(default=0)
+    needs_manual_review = models.BooleanField(default=False)
+
     status = models.CharField(
         max_length=20,
         choices=KYCStatus.choices,
