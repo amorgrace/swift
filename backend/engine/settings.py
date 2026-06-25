@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'transactions',
     'kyc',
     'dashboard',
+    'notifications',
 ]
 
 MIDDLEWARE = [

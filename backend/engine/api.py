@@ -7,6 +7,7 @@ from transactions.views import router as transactions_router
 from transactions.webhooks import router as webhooks_router, quidax_router
 from kyc.views import router as kyc_router
 from dashboard.views import router as dashboard_router
+from notifications.views import router as notifications_router
 from django_ratelimit.exceptions import Ratelimited
 
 api = NinjaAPI(
@@ -26,6 +27,7 @@ api.add_router("webhooks/", webhooks_router)
 api.add_router("quidax/", quidax_router)
 api.add_router("kyc/", kyc_router)
 api.add_router("dashboard/", dashboard_router)
+api.add_router("notifications/", notifications_router)
 
 
 @api.exception_handler(Ratelimited)
