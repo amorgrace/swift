@@ -318,3 +318,28 @@ def reject_kyc(request, kyc_id: int, payload: KYCRejectSchema):
         )
     except KYCVerification.DoesNotExist:
         raise HttpError(404, "KYC not found")
+
+
+@router.post('/{kyc_id}/unverify', response=KYCResponseSchema)
+def unverify_kyc(request, kyc_id: int):
+    """Admin endpoint to set a user to unverified."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied")
+
+    try:
+        kyc = KYCVerification.objects.get(id=kyc_id)
+        if kyc.status == KYCStatus.UNVERIFIED:
+            raise HttpError(400, "KYC is already unverified")
+
+        kyc.status = KYCStatus.UNVERIFIED
+        kyc.save()
+
+        return KYCResponseSchema(
+            status=kyc.status,
+            document_type=kyc.document_type,
+            document_number=kyc.document_number,
+            rejection_reason=kyc.rejection_reason,
+            created_at=kyc.created_at.isoformat()
+        )
+    except KYCVerification.DoesNotExist:
+        raise HttpError(404, "KYC not found")

@@ -23,3 +23,8 @@ db.sqlite3
 
 # Docs
 secuirty.md
+
+# Build Scripts & Raw HTML
+build_templates.py
+send_test_email.py
+newemails.html

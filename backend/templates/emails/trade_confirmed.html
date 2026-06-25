@@ -562,62 +562,60 @@
   </div>
 
   <div class="et-hero">
-    <div class="et-hero-top red"></div>
+    <div class="et-hero-top"></div>
     <div class="et-hero-body">
-      <div class="et-icon-wrap red">✕</div>
-      <div class="et-eyebrow red">Failed</div>
-      <div class="et-title">Withdrawal failed.</div>
-      <div class="et-subtitle">Hi <strong>{{ full_name }}</strong>, your NGN withdrawal failed. The funds have been returned to your SwiftTrade wallet.</div>
+      <div class="et-icon-wrap green"></div>
+      <div class="et-eyebrow green">Trade Complete</div>
+      <div class="et-title">Hi <strong>{{ full_name }}</strong>, your sell order was executed.</div>
+      <div class="et-subtitle">Your Bitcoin has been sold and the NGN equivalent has been credited to your Swift Trade wallet. You can withdraw at any time.</div>
 
       <div class="et-amount-block">
-        <div class="et-amount-label">Amount Sent</div>
-        <div class="et-amount-value red">₦{{ amount }}</div>
-        <div class="et-amount-sub">{{ bank_name }} · {{ account_number }} · {{ full_name|upper }}</div>
+        <div class="et-amount-label">NGN Credited</div>
+        <div class="et-amount-value green">₦{{ ngn_amount }}</div>
+        <div class="et-amount-sub">for {{ crypto_amount }} · Rate: {{ rate }}</div>
       </div>
 
       <hr class="et-divider" />
 
-      
-
       <div class="et-detail-row">
-        <span class="et-detail-key">Amount</span>
-        <span class="et-detail-val">₦{{ amount }}</span>
+        <span class="et-detail-key">Trade Type</span>
+        <span class="et-detail-val" style="text-align: right; vertical-align: middle;"><span class="et-badge red"><span class="et-badge-dot red"></span></span>Sell BTC</span>
       </div>
       <div class="et-detail-row">
-        <span class="et-detail-key">Bank</span>
-        <span class="et-detail-val">{{ bank_name }}</span>
+        <span class="et-detail-key">Crypto Sold</span>
+        <span class="et-detail-val">{{ crypto_amount }}</span>
       </div>
       <div class="et-detail-row">
-        <span class="et-detail-key">Account No.</span>
-        <span class="et-detail-val">{{ account_number }}</span>
+        <span class="et-detail-key">Rate Applied</span>
+        <span class="et-detail-val">{{ rate }}</span>
       </div>
       <div class="et-detail-row">
-        <span class="et-detail-key">Account Name</span>
-        <span class="et-detail-val">{{ full_name|upper }}</span>
+        <span class="et-detail-key">Platform Fee (0.8%)</span>
+        <span class="et-detail-val red">− {{ fee }}</span>
       </div>
       <div class="et-detail-row">
-        <span class="et-detail-key">Reference</span>
-        <span class="et-detail-val" style="font-size:10px;">{{ reference }}</span>
+        <span class="et-detail-key">NGN Received</span>
+        <span class="et-detail-val green">₦{{ ngn_amount }}</span>
       </div>
       <div class="et-detail-row">
-        <span class="et-detail-key">Initiated</span>
+        <span class="et-detail-key">Order ID</span>
+        <span class="et-detail-val" style="font-size:10px;">{{ order_id }}</span>
+      </div>
+      <div class="et-detail-row">
+        <span class="et-detail-key">Executed</span>
         <span class="et-detail-val">{{ timestamp }}</span>
       </div>
       <div class="et-detail-row">
         <span class="et-detail-key">Status</span>
-        <span class="et-detail-val" style="text-align: right; vertical-align: middle;"><span class="et-badge red"><span class="et-badge-dot red"></span></span>Failed</span>
+        <span class="et-detail-val" style="text-align: right; vertical-align: middle;"><span class="et-badge green"><span class="et-badge-dot green"></span></span>Completed</span>
       </div>
 
       <hr class="et-divider" />
       <div class="et-cta-wrap" style="display: inline-block; margin: 12px 6px;" style="text-align: center; padding: 30px 0; margin: 20px 0;" >
-        <a href="#" class="et-cta red-btn" style="display: inline-block; margin: 12px 6px;">Try Again →</a>
+        <a href="#" class="et-cta" style="display: inline-block; margin: 12px 6px;">Withdraw NGN →</a>
+        <a href="#" class="et-cta ghost" style="display: inline-block; margin: 12px 6px;">View Receipt</a>
       </div>
     </div>
-  </div>
-
-  <div class="et-info-card">
-    <div class="et-info-card-title">Not received after 30 minutes?</div>
-    <div class="et-info-card-text">If the funds haven't arrived within 30 minutes, your bank may be experiencing delays. Contact Swift Trade support with reference <span style="color:#F5A623;font-family:'DM Mono',monospace;">{{ reference }}</span> and we'll investigate immediately.</div>
   </div>
 
   <div class="et-footer">

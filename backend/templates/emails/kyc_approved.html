@@ -1,32 +1,615 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+.et {
+      background: #050505 !important; color: #ffffff !important;
+      padding: 40px 20px;
+      font-family: 'Outfit', Arial, sans-serif;
+    }
+
+    .et-wrap {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    /* header */
+    .et-header {
+      text-align: center;
+      padding: 32px 0 24px;
+    }
+
+    .et-logo {
+      font-family: 'Bebas Neue', Impact, sans-serif;
+      font-size: 28px;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+
+    .et-logo-accent {
+      color: #0ECB81;
+    }
+
+    .et-logo-tagline {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    /* hero card */
+    .et-hero {
+      background: #101010;
+      border: 1px solid #1a1a1a;
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .et-hero-top {
+      height: 4px;
+      background: linear-gradient(90deg, #0ECB81, #0aab6a);
+    }
+
+    .et-hero-top.amber {
+      background: linear-gradient(90deg, #F5A623, #d4891a);
+    }
+
+    .et-hero-top.red {
+      background: linear-gradient(90deg, #F6465D, #d63a4f);
+    }
+
+    .et-hero-top.blue {
+      background: linear-gradient(90deg, #3B82F6, #2563eb);
+    }
+
+    .et-hero-body {
+      padding: 32px 32px 28px;
+    }
+
+    .et-icon-wrap {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      margin: 0 auto 20px;
+      text-align: center;
+      line-height: 52px;
+      font-size: 24px;
+    }
+
+    .et-icon-wrap.green {
+      background: rgba(14, 203, 129, 0.12);
+    }
+
+    .et-icon-wrap.amber {
+      background: rgba(245, 166, 35, 0.12);
+    }
+
+    .et-icon-wrap.red {
+      background: rgba(246, 70, 93, 0.12);
+    }
+
+    .et-icon-wrap.blue {
+      background: rgba(59, 130, 246, 0.12);
+    }
+
+    .et-eyebrow {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .et-eyebrow.green {
+      color: #0ECB81;
+    }
+
+    .et-eyebrow.amber {
+      color: #F5A623;
+    }
+
+    .et-eyebrow.red {
+      color: #F6465D;
+    }
+
+    .et-eyebrow.blue {
+      color: #3B82F6;
+    }
+
+    .et-title {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .et-subtitle {
+      font-size: 14px;
+      color: #888;
+      line-height: 1.65;
+    }
+
+    /* divider */
+    .et-divider {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      margin: 24px 0;
+    }
+
+    /* amount display */
+    .et-amount-block {
+      text-align: center;
+      padding: 20px 0 8px;
+    }
+
+    .et-amount-label {
+      font-size: 12px;
+      color: #555;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .et-amount-value {
+      font-family: 'Bebas Neue', Impact, sans-serif;
+      font-size: 52px;
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+
+    .et-amount-value.green {
+      color: #0ECB81;
+    }
+
+    .et-amount-value.amber {
+      color: #F5A623;
+    }
+
+    .et-amount-value.white {
+      color: #fff;
+    }
+
+    .et-amount-sub {
+      font-size: 13px;
+      color: #555;
+      margin-top: 6px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    /* detail rows */
+    .et-detail-row {
+      display: table;
+      width: 100%;
+      padding: 11px 0;
+      border-bottom: 1px solid #141414;
+      font-size: 13px;
+    }
+
+    .et-detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .et-detail-key {
+      display: table-cell;
+      text-align: left;
+      color: #555;
+    }
+
+    .et-detail-val {
+      display: table-cell;
+      text-align: right;
+      color: #ccc;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+
+    .et-detail-val.green {
+      color: #0ECB81;
+    }
+
+    .et-detail-val.amber {
+      color: #F5A623;
+    }
+
+    .et-detail-val.red {
+      color: #F6465D;
+    }
+
+    /* status badge */
+    .et-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+
+    .et-badge-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .et-badge.green {
+      background: rgba(14, 203, 129, 0.12);
+      color: #0ECB81;
+    }
+
+    .et-badge.amber {
+      background: rgba(245, 166, 35, 0.12);
+      color: #F5A623;
+    }
+
+    .et-badge.red {
+      background: rgba(246, 70, 93, 0.12);
+      color: #F6465D;
+    }
+
+    .et-badge-dot.green {
+      background: #0ECB81;
+    }
+
+    .et-badge-dot.amber {
+      background: #F5A623;
+    }
+
+    .et-badge-dot.red {
+      background: #F6465D;
+    }
+
+    /* crypto pill */
+    .et-crypto-pill {
+      display: inline-block;
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      vertical-align: middle;
+    }
+
+    .et-crypto-icon {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      margin-right: 8px;
+      vertical-align: middle;
+      text-align: center;
+      line-height: 24px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* CTA button */
+    .et-cta-wrap {
+      text-align: center;
+      padding: 24px 0;
+      margin: 16px 0;
+    }
+
+    .et-cta {
+      display: inline-block;
+      background: #0ECB81;
+      color: #000;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 13px 36px;
+      border-radius: 10px;
+      text-decoration: none;
+      letter-spacing: 0.3px;
+    }
+
+    .et-cta.ghost {
+      background: transparent;
+      color: #0ECB81;
+      border: 1.5px solid rgba(14, 203, 129, 0.35);
+    }
+
+    .et-cta.amber-btn {
+      background: #F5A623;
+      color: #000;
+    }
+
+    .et-cta.red-btn {
+      background: transparent;
+      color: #F6465D;
+      border: 1.5px solid rgba(246, 70, 93, 0.35);
+    }
+
+    /* info card */
+    .et-info-card {
+      background: #0c0c0c;
+      border: 1px solid #1a1a1a;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 16px;
+    }
+
+    .et-info-card-title {
+      font-size: 11px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 10px;
+    }
+
+    .et-info-card-text {
+      font-size: 13px;
+      color: #777;
+      line-height: 1.6;
+    }
+
+    /* wallet address */
+    .et-address-box {
+      background: #0c0c0c;
+      border: 1px solid #1a1a1a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #555;
+      word-break: break-all;
+      margin-top: 8px;
+    }
+
+    /* progress bar */
+    .et-progress-wrap {
+      margin: 20px 0;
+    }
+
+    .et-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .et-progress-track {
+      height: 4px;
+      background: #1a1a1a;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .et-progress-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    /* steps */
+    .et-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 16px 0;
+    }
+
+    .et-step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 10px 0;
+      position: relative;
+    }
+
+    .et-step-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .et-step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .et-step-num.done {
+      background: rgba(14, 203, 129, 0.15);
+      color: #0ECB81;
+    }
+
+    .et-step-num.active {
+      background: rgba(245, 166, 35, 0.15);
+      color: #F5A623;
+    }
+
+    .et-step-num.pending {
+      background: #141414;
+      color: #333;
+    }
+
+    .et-step-line {
+      width: 1px;
+      flex: 1;
+      min-height: 16px;
+      margin-top: 4px;
+    }
+
+    .et-step-line.done {
+      background: rgba(14, 203, 129, 0.2);
+    }
+
+    .et-step-line.pending {
+      background: #1a1a1a;
+    }
+
+    .et-step-content {
+      padding-top: 4px;
+    }
+
+    .et-step-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #ccc;
+      margin-bottom: 2px;
+    }
+
+    .et-step-title.done {
+      color: #0ECB81;
+    }
+
+    .et-step-desc {
+      font-size: 12px;
+      color: #444;
+    }
+
+    /* footer */
+    .et-footer {
+      text-align: center;
+      padding: 28px 0 8px;
+    }
+
+    .et-footer-logo {
+      font-family: 'Bebas Neue', Impact, sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+      color: #2e2e2e;
+      margin-bottom: 12px;
+    }
+
+    .et-footer-logo span {
+      color: #1a5c3a;
+    }
+
+    .et-footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 14px;
+    }
+
+    .et-footer-link {
+      font-size: 12px;
+      color: #333;
+      text-decoration: none;
+    }
+
+    .et-footer-text {
+      font-size: 11px;
+      color: #2a2a2a;
+      line-height: 1.6;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .et-footer-divider {
+      border-top: 1px solid #111;
+      margin: 16px 0;
+    }
+
+    /* ── Syntax highlight colors ── */
+    .hl-tag {
+      color: #f92672;
+    }
+
+    .hl-attr {
+      color: #a6e22e;
+    }
+
+    .hl-val {
+      color: #e6db74;
+    }
+
+    .hl-cmt {
+      color: #444;
+      font-style: italic;
+    }
+
+    .hl-green {
+      color: #0ECB81;
+    }
+
+    .hl-text {
+      color: #ccc;
+    }
+</style>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #080808; color: #FFFFFF;">
-  <div style="max-width: 600px; margin: 0 auto; background-color: #111111; padding: 40px; border-radius: 8px; border: 1px solid #1E1E1E; margin-top: 40px; margin-bottom: 40px;">
-    
-    <div style="text-align: center; margin-bottom: 30px;">
-      <h2 style="margin: 0; color: #0ECB81; font-size: 28px; font-weight: 800; letter-spacing: -1px;">SwiftTrade</h2>
+<body style="margin: 0; padding: 0; background-color: #050505 !important; color: #ffffff !important; -webkit-font-smoothing: antialiased;">
+<table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#050505" style="background-color: #050505;">
+  <tr>
+    <td align="center" style="background-color: #050505;">
+<div class="et">
+<div class="et-wrap">
+
+  <div class="et-header">
+    <div class="et-logo">SWIFT<span class="et-logo-accent">TRADE</span></div>
+    <div class="et-logo-tagline">Trade Crypto · Receive Naira</div>
+  </div>
+
+  <div class="et-hero">
+    <div class="et-hero-top"></div>
+    <div class="et-hero-body">
+      <div class="et-icon-wrap green">✓</div>
+      <div class="et-eyebrow green">Identity Verified</div>
+      <div class="et-title">You're fully verified, <strong>{{ full_name }}</strong>.</div>
+      <div class="et-subtitle">Your identity has been confirmed. All limits are now lifted — you can trade and withdraw without restrictions.</div>
+
+      <hr class="et-divider" />
+
+      <!-- Unlocked features -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 16px;">
+        <div style="background:#0c0c0c;border:1px solid #1a1a1a;border-radius:10px;padding:14px 16px;">
+          <div style="font-size:18px;margin-bottom:6px;">💸</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:2px;">Unlimited Withdrawals</div>
+          <div style="font-size:11px;color:#444;">No daily cap</div>
+        </div>
+        <div style="background:#0c0c0c;border:1px solid #1a1a1a;border-radius:10px;padding:14px 16px;">
+          <div style="font-size:18px;margin-bottom:6px;">📈</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:2px;">Higher Trade Limits</div>
+          <div style="font-size:11px;color:#444;">Up to ₦50M/day</div>
+        </div>
+        <div style="background:#0c0c0c;border:1px solid #1a1a1a;border-radius:10px;padding:14px 16px;">
+          <div style="font-size:18px;margin-bottom:6px;">🎁</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:2px;">Gift Cards</div>
+          <div style="font-size:11px;color:#444;">Redeem for NGN</div>
+        </div>
+        <div style="background:#0c0c0c;border:1px solid #1a1a1a;border-radius:10px;padding:14px 16px;">
+          <div style="font-size:18px;margin-bottom:6px;">🔗</div>
+          <div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:2px;">Referral Rewards</div>
+          <div style="font-size:11px;color:#444;">Earn per invite</div>
+        </div>
+      </div>
+
+      <hr class="et-divider" />
+      <div class="et-cta-wrap" style="display: inline-block; margin: 12px 6px;" style="text-align: center; padding: 30px 0; margin: 20px 0;" >
+        <a href="#" class="et-cta" style="display: inline-block; margin: 12px 6px;">Start Trading →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="et-footer">
+    <div class="et-footer-divider"></div>
+    <div class="et-footer-logo">SWIFT<span>TRADE</span></div>
     </div>
 
-    <h1 style="font-size: 22px; color: #FFFFFF; margin-top: 0; margin-bottom: 16px;">KYC Approved</h1>
-    
-    <p style="font-size: 16px; line-height: 1.6; margin-top: 0; margin-bottom: 24px; color: #888888;">
-      Hi <strong style="color: #FFFFFF;">{{ full_name }}</strong>,<br><br>
-      Great news! Your KYC documents have been successfully verified and approved.
-    </p>
-
-    <div style="background-color: rgba(14, 203, 129, 0.1); border: 1px solid #0ECB81; border-radius: 8px; padding: 20px; margin-bottom: 32px;">
-      <p style="margin: 0; font-size: 14px; color: #0ECB81; line-height: 1.6;">
-        You can now proceed to make withdrawals from your SwiftTrade wallet without any restrictions.
-      </p>
-    </div>
-
-  </div>
-  
-  <div style="text-align: center; padding-bottom: 40px;">
-    <p style="font-size: 12px; color: #555555; margin: 0;">&copy; {{ year }} SwiftTrade. All rights reserved.</p>
-  </div>
+</div>
+    </td>
+  </tr>
+</table>
 </body>
 </html>
