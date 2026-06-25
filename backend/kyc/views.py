@@ -1,6 +1,7 @@
 from ninja import Router
 from ninja.errors import HttpError
 from django.conf import settings
+import httpx
 
 from pydantic import BaseModel
 
@@ -87,6 +88,13 @@ def verify_id(request, payload: KYCStep1Schema):
             verified_name=verified_name,
             date_of_birth=kyc.date_of_birth
         )
+    except httpx.HTTPStatusError as e:
+        try:
+            err_data = e.response.json()
+            message = err_data.get("message", "Verification failed.")
+        except Exception:
+            message = str(e)
+        raise HttpError(400, f"{message}")
     except HttpError:
         raise
     except Exception as e:
