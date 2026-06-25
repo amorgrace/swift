@@ -11,8 +11,8 @@ class KYCStatus(models.TextChoices):
 
 class DocumentType(models.TextChoices):
     NIN = 'nin', 'NIN'
+    BVN = 'bvn', 'BVN'
     DRIVERS_LICENSE = 'drivers_license', "Driver's License"
-    PASSPORT = 'passport', 'Passport'
 
 
 class KYCVerification(models.Model):
@@ -31,7 +31,7 @@ class KYCVerification(models.Model):
     )
     document_number = models.CharField(
         max_length=50,
-        help_text='Document ID number (NIN, License, or Passport number)',
+        help_text='Document ID number (NIN, BVN, or License number)',
     )
     document_url = models.URLField(
         max_length=500,
