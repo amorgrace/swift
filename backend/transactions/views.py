@@ -42,8 +42,6 @@ def request_withdrawal(request, payload: WithdrawalRequestSchema):
         raise HttpError(400, str(e))
     except Exception as e:
         raise HttpError(500, str(e))
-
-
 @router.get('/', response=List[TransactionSchema])
 @paginate(PageNumberPagination, page_size=10)
 def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
@@ -75,11 +73,13 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             coin = d.asset.upper()
             network = d.network
             crypto_amount = d.crypto_amount
+            rate = d.rate_applied
         elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
             w = t.related_withdrawal
             acc_num = w.bank_account.account_number
             masked = acc_num[-4:] if len(acc_num) >= 4 else acc_num
             bank = f"{w.bank_account.bank_name} ••{masked}"
+            rate = None
             
         results.append(TransactionSchema(
             id=t.id,
@@ -92,7 +92,8 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             bank=bank,
             coin=coin,
             network=network,
-            crypto_amount=crypto_amount
+            crypto_amount=crypto_amount,
+            rate=rate
         ))
 
     return results
@@ -128,11 +129,13 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
             coin = d.asset.upper()
             network = d.network
             crypto_amount = d.crypto_amount
+            rate = d.rate_applied
         elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
             w = t.related_withdrawal
             acc_num = w.bank_account.account_number
             masked = acc_num[-4:] if len(acc_num) >= 4 else acc_num
             bank = f"{w.bank_account.bank_name} ••{masked}"
+            rate = None
             
         results.append(AdminTransactionSchema(
             id=t.id,
@@ -146,6 +149,7 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
             coin=coin,
             network=network,
             crypto_amount=crypto_amount,
+            rate=rate,
             user_email=t.wallet.user.email,
             user_full_name=t.wallet.user.full_name
         ))

@@ -35,7 +35,7 @@ def get_balance(request):
 def get_deposit_addresses(request):
     """Get all crypto deposit addresses for the user."""
     try:
-        addresses = WalletService.get_deposit_addresses(request.user)
+        addresses = WalletService.get_all_deposit_addresses(request.user)
         return addresses
     except ValueError as e:
         raise HttpError(404, str(e))

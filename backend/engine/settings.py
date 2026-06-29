@@ -142,6 +142,7 @@ NINJA_JWT = {
 MAILTRAP_API_TOKEN = os.environ['MAILTRAP_API_TOKEN']
 DEFAULT_FROM_EMAIL = os.environ['DEFAULT_FROM_EMAIL']
 FRONTEND_URL = os.environ['FRONTEND_URL']
+BACKEND_URL = os.environ.get('BACKEND_URL', 'http://localhost:8000')
 
 EMAIL_BACKEND = "anymail.backends.mailtrap.EmailBackend"
 ANYMAIL = {

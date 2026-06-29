@@ -111,6 +111,15 @@ def _handle_selfie_failure(kyc, reason):
         kyc.save()
         
         send_kyc_submitted_email(user=kyc.user)
+        
+        from notifications.models import Notification
+        Notification.objects.create(
+            user=kyc.user,
+            type='kyc',
+            title='KYC Under Review',
+            body='Your KYC verification requires manual review and will be processed shortly.'
+        )
+
         from notifications.telegram import TelegramNotifier
         TelegramNotifier.kyc_submitted(
             full_name=kyc.user.full_name,
@@ -184,6 +193,15 @@ def verify_selfie(request, payload: KYCStep2Schema):
         kyc.save()
         
         send_kyc_approved_email(user=request.user)
+        
+        from notifications.models import Notification
+        Notification.objects.create(
+            user=request.user,
+            type='kyc',
+            title='KYC Verified',
+            body='Your KYC verification was successful. You can now use all platform features.'
+        )
+
         from notifications.telegram import TelegramNotifier
         TelegramNotifier.kyc_approved(
             full_name=request.user.full_name,
@@ -273,6 +291,14 @@ def approve_kyc(request, kyc_id: int):
         # Send Email
         send_kyc_approved_email(user=kyc.user)
 
+        from notifications.models import Notification
+        Notification.objects.create(
+            user=kyc.user,
+            type='kyc',
+            title='KYC Approved',
+            body='Your KYC verification has been approved by our team.'
+        )
+
         from notifications.telegram import TelegramNotifier
         TelegramNotifier.kyc_approved(
             full_name=kyc.user.full_name,
@@ -308,6 +334,14 @@ def reject_kyc(request, kyc_id: int, payload: KYCRejectSchema):
 
         # Send Email
         send_kyc_rejected_email(user=kyc.user, reason=payload.reason)
+
+        from notifications.models import Notification
+        Notification.objects.create(
+            user=kyc.user,
+            type='kyc',
+            title='KYC Rejected',
+            body=f'Your KYC verification was rejected. Reason: {payload.reason}'
+        )
 
         from notifications.telegram import TelegramNotifier
         TelegramNotifier.kyc_rejected(

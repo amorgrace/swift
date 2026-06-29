@@ -74,6 +74,15 @@ def verify_email(request, payload: VerifyEmailSchema):
                 updated_at=user.updated_at.isoformat(),
                 last_login=user.last_login.isoformat() if user.last_login else None,
             )
+            
+            from notifications.models import Notification
+            if not Notification.objects.filter(user=user, type='system').exists():
+                Notification.objects.create(
+                    user=user,
+                    type='system',
+                    title='Welcome to Swift Trade',
+                    body='We are glad to have you! Start by completing your KYC verification to unlock all features.'
+                )
 
             return AuthTokenResponseSchema(
                 access=tokens["access"], refresh=tokens.get("refresh"), user=user_data

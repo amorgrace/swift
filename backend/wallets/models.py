@@ -104,7 +104,7 @@ class NGNWallet(models.Model):
 class DepositAddress(models.Model):
     """
     Crypto deposit address for a user, per asset and network.
-    Generated via Quidax sub-accounts API.
+    Generated via HD wallet derivation and monitored by Tatum.
     """
     wallet = models.ForeignKey(
         NGNWallet,
@@ -114,6 +114,8 @@ class DepositAddress(models.Model):
     asset = models.CharField(max_length=10, choices=AssetChoices.choices)
     network = models.CharField(max_length=20, choices=NetworkChoices.choices)
     address = models.CharField(max_length=255)
+    derivation_index = models.PositiveIntegerField(null=True, blank=True)
+    tatum_subscription_id = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

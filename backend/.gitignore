@@ -29,3 +29,6 @@ build_templates.py
 send_test_email.py
 enforce_dark_mode.py
 newemails.html
+
+# Checkpoint commit (pre-HD-wallet pivot)
+# COMMIT: 28e356a82a6c0226736f903f28ea8e63b49fc161

@@ -10,177 +10,7 @@ from .models import NGNWallet, DepositAddress, BankAccount, ASSET_NETWORKS
 logger = logging.getLogger(__name__)
 
 
-class QuidaxService:
-    """
-    Wraps Quidax API calls for sub-account management and deposit address generation.
-    Skeleton — will function once QUIDAX_API_KEY is set in .env.
-    """
 
-    @staticmethod
-    def _get_headers() -> dict:
-        api_key = getattr(settings, 'QUIDAX_API_KEY', '')
-        return {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        }
-
-    @staticmethod
-    def _get_base_url() -> str:
-        return getattr(
-            settings,
-            'QUIDAX_BASE_URL',
-            'https://openapi.quidax.io/exchange-open-api/v1',
-        )
-
-    @staticmethod
-    def create_sub_account(user) -> str:
-        """
-        Create a Quidax sub-account for the given user.
-        Returns the Quidax user ID.
-        """
-        url = f'{QuidaxService._get_base_url()}/users'
-        payload = {
-            'email': user.email,
-            'first_name': user.full_name.split(' ')[0],
-            'last_name': ' '.join(user.full_name.split(' ')[1:]) or user.full_name,
-        }
-
-        try:
-            with httpx.Client(timeout=15) as client:
-                response = client.post(
-                    url,
-                    json=payload,
-                    headers=QuidaxService._get_headers(),
-                )
-                
-                # Check for "email already exists"
-                if response.status_code in [400, 409]:
-                    error_msg = str(response.text).lower()
-                    if "already exists" in error_msg:
-                        import secrets
-                        parts = user.email.split('@')
-                        if len(parts) == 2:
-                            payload['email'] = f"{parts[0]}+{secrets.token_hex(4)}@{parts[1]}"
-                        else:
-                            payload['email'] = f"{user.email}+{secrets.token_hex(4)}@swift.internal"
-                        
-                        response = client.post(
-                            url,
-                            json=payload,
-                            headers=QuidaxService._get_headers(),
-                        )
-
-                response.raise_for_status()
-                data = response.json()
-                quidax_user_id = data.get('data', {}).get('id', '')
-                logger.info(f'Created Quidax sub-account for {payload["email"]}: {quidax_user_id}')
-                return quidax_user_id
-        except httpx.HTTPStatusError as e:
-            logger.error(f'Quidax sub-account creation failed for {user.email}: {e}. Response: {e.response.text}')
-            raise ValueError(f'Failed to create Quidax sub-account: {e}')
-        except httpx.HTTPError as e:
-            logger.error(f'Quidax sub-account creation failed for {user.email}: {e}')
-            raise ValueError(f'Failed to create Quidax sub-account: {e}')
-
-    @staticmethod
-    def generate_deposit_address(quidax_user_id: str, asset: str, network: str) -> str:
-        """
-        Generate a deposit address for the given asset/network on a Quidax sub-account.
-        Returns the deposit address string.
-        """
-        url = (
-            f'{QuidaxService._get_base_url()}/users/{quidax_user_id}'
-            f'/wallets/{asset}/addresses'
-        )
-        params = {'network': network} if network else {}
-
-        try:
-            with httpx.Client(timeout=15) as client:
-                response = client.post(
-                    url,
-                    params=params,  # Quidax expects network as a query param
-                    headers=QuidaxService._get_headers(),
-                )
-                response.raise_for_status()
-                data = response.json()
-                address = data.get('data', {}).get('address', '')
-                logger.info(f'Generated {asset}/{network} address for {quidax_user_id}: {address}')
-                return address
-        except httpx.HTTPStatusError as e:
-            logger.error(f'Quidax address generation failed for {asset}/{network}: {e}. Response: {e.response.text}')
-            raise ValueError(f'Failed to generate deposit address: {e}')
-        except httpx.HTTPError as e:
-            logger.error(f'Quidax address generation failed for {asset}/{network}: {e}')
-            raise ValueError(f'Failed to generate deposit address: {e}')
-
-    @staticmethod
-    def generate_all_addresses(quidax_user_id: str, wallet: NGNWallet) -> List[DepositAddress]:
-        """
-        Generate deposit addresses for all supported assets/networks.
-        Creates DepositAddress records in the database.
-        """
-        addresses = []
-        for asset, networks in ASSET_NETWORKS.items():
-            for network in networks:
-                try:
-                    # Check if we already have it in the DB to avoid redundant API calls
-                    existing = DepositAddress.objects.filter(
-                        wallet=wallet, asset=asset, network=network.value
-                    ).first()
-                    
-                    if existing:
-                        addresses.append(existing)
-                        continue
-
-                    # Otherwise, generate from Quidax
-                    address_str = QuidaxService.generate_deposit_address(
-                        quidax_user_id, asset, network.value,
-                    )
-                    deposit_address, _ = DepositAddress.objects.get_or_create(
-                        wallet=wallet,
-                        asset=asset,
-                        network=network.value,
-                        defaults={'address': address_str},
-                    )
-                    addresses.append(deposit_address)
-                except ValueError as e:
-                    logger.warning(f'Skipping {asset}/{network}: {e}')
-        return addresses
-
-    @staticmethod
-    def verify_webhook_signature(request) -> bool:
-        """
-        Verify the authenticity of a Quidax webhook request using HMAC SHA256.
-        """
-        import hashlib
-        import hmac
-
-        secret_key = getattr(settings, 'QUIDAX_WEBHOOK_SECRET', '')
-        if not secret_key:
-            logger.warning('QUIDAX_WEBHOOK_SECRET not set, skipping signature verification')
-            return True
-
-        signature = request.headers.get('quidax-signature') or request.headers.get('x-quidax-signature') or ''
-        if not signature:
-            return False
-
-        body = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
-        timestamp = request.headers.get('quidax-timestamp') or request.headers.get('x-quidax-timestamp')
-
-        signing_payloads = [body]
-        if timestamp:
-            signing_payloads.insert(0, f"{timestamp}.{body}")
-
-        for payload in signing_payloads:
-            expected = hmac.new(
-                secret_key.encode('utf-8'),
-                payload.encode('utf-8'),
-                hashlib.sha256,
-            ).hexdigest()
-            if hmac.compare_digest(expected, signature):
-                return True
-                
-        return False
 
 
 class PaystackService:
@@ -339,61 +169,105 @@ class WalletService:
     @staticmethod
     def create_wallet_for_user(user) -> NGNWallet:
         """
-        Create an NGN wallet for a user and initialize Quidax sub-account.
+        Create an NGN wallet for a new user.
+        No longer calls Quidax — addresses are generated lazily on first deposit screen visit.
         """
-        wallet, created = NGNWallet.objects.get_or_create(user=user)
-        if created and not wallet.quidax_user_id:
-            try:
-                quidax_user_id = QuidaxService.create_sub_account(user)
-                wallet.quidax_user_id = quidax_user_id
-                wallet.save(update_fields=['quidax_user_id'])
-                QuidaxService.generate_all_addresses(quidax_user_id, wallet)
-            except Exception as e:
-                logger.error(f'Failed to setup Quidax for wallet {wallet.id}: {e}')
+        wallet, _ = NGNWallet.objects.get_or_create(user=user)
         return wallet
 
     @staticmethod
-    def get_deposit_addresses(user) -> List[Dict]:
-        """Get all deposit addresses for a user, grouped by asset."""
+    def get_or_create_deposit_address(user, asset: str, network: str) -> DepositAddress:
+        """
+        Get existing deposit address or derive a new one from xpub and subscribe to Tatum.
+        """
+        from .tatum import get_next_derivation_index, derive_address, subscribe_to_tatum
+
+        wallet = NGNWallet.objects.get(user=user)
+
+        # ETH and all ERC-20/BEP-20 tokens share the same address derivation
+        lookup_asset = "eth" if network in ["erc20", "bep20"] else asset
+        existing = DepositAddress.objects.filter(
+            wallet=wallet, asset=lookup_asset, network=network
+        ).first()
+
+        if existing:
+            # For non-eth assets that share the ETH address, return a matching record
+            if asset != lookup_asset:
+                addr, _ = DepositAddress.objects.get_or_create(
+                    wallet=wallet,
+                    asset=asset,
+                    network=network,
+                    defaults={
+                        "address": existing.address,
+                        "derivation_index": existing.derivation_index,
+                    }
+                )
+                return addr
+            return existing
+
+        with transaction.atomic():
+            index = get_next_derivation_index(lookup_asset, network)
+            address = derive_address(lookup_asset, network, index)
+
+            deposit_address = DepositAddress.objects.create(
+                wallet=wallet,
+                asset=lookup_asset,
+                network=network,
+                address=address,
+                derivation_index=index,
+            )
+
+            webhook_url = f"{settings.BACKEND_URL}/api/webhooks/tatum-deposit/"
+            try:
+                sub_id = subscribe_to_tatum(address, network, webhook_url)
+                if sub_id:
+                    deposit_address.tatum_subscription_id = sub_id
+                    deposit_address.save(update_fields=["tatum_subscription_id"])
+            except Exception as e:
+                logger.error(f"Tatum subscription failed for {address}: {e}")
+                # Don't fail — address is valid, subscription can be retried
+
+        # For non-eth assets that share the ETH address, return a matching record
+        if asset != lookup_asset:
+            addr, _ = DepositAddress.objects.get_or_create(
+                wallet=wallet,
+                asset=asset,
+                network=network,
+                defaults={
+                    "address": deposit_address.address,
+                    "derivation_index": deposit_address.derivation_index,
+                    "tatum_subscription_id": deposit_address.tatum_subscription_id,
+                }
+            )
+            return addr
+
+        return deposit_address
+
+    @staticmethod
+    def get_all_deposit_addresses(user) -> List[Dict]:
+        """Get all crypto deposit addresses for the user, grouped by asset."""
         try:
             wallet = NGNWallet.objects.get(user=user)
         except NGNWallet.DoesNotExist:
             raise ValueError('Wallet not found')
 
-        if not wallet.quidax_user_id:
-            try:
-                quidax_user_id = QuidaxService.create_sub_account(user)
-                wallet.quidax_user_id = quidax_user_id
-                wallet.save(update_fields=['quidax_user_id'])
-            except Exception as e:
-                logger.error(f'Failed to setup Quidax sub-account: {e}')
-
-        if wallet.quidax_user_id:
-            # Check if any supported network is missing a DepositAddress
-            missing = False
-            for asset, networks in ASSET_NETWORKS.items():
-                for network in networks:
-                    if not DepositAddress.objects.filter(wallet=wallet, asset=asset, network=network.value).exists():
-                        missing = True
-                        break
-                if missing:
-                    break
-
-            if missing:
-                try:
-                    QuidaxService.generate_all_addresses(wallet.quidax_user_id, wallet)
-                except Exception as e:
-                    logger.error(f'Failed to generate deposit addresses: {e}')
-
-        addresses = DepositAddress.objects.filter(wallet=wallet).order_by('asset', 'network')
         grouped = {}
-        for addr in addresses:
-            if addr.asset not in grouped:
-                grouped[addr.asset] = []
-            grouped[addr.asset].append({
-                'network': addr.network,
-                'address': addr.address,
-            })
+        for asset, networks in ASSET_NETWORKS.items():
+            for network in networks:
+                # Currently only supporting BTC and ETH/ERC20/BEP20 via HD wallet logic mapped in Tatum
+                if network.value not in ["bitcoin", "erc20", "bep20"]:
+                    continue
+                try:
+                    addr = WalletService.get_or_create_deposit_address(user, asset, network.value)
+                    if addr.asset not in grouped:
+                        grouped[addr.asset] = []
+                    grouped[addr.asset].append({
+                        'network': addr.network,
+                        'address': addr.address,
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to setup address for {asset}/{network.value}: {e}")
+                    
         return grouped
 
     @staticmethod

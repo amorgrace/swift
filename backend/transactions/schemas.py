@@ -42,6 +42,7 @@ class TransactionSchema(BaseModel):
     coin: Optional[str] = None
     network: Optional[str] = None
     crypto_amount: Optional[Decimal] = None
+    rate: Optional[Decimal] = None
 
 class AdminTransactionSchema(TransactionSchema):
     user_email: str

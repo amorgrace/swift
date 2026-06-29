@@ -132,6 +132,128 @@ class DepositService:
             logger.info(f"Successfully processed deposit {quidax_reference} for wallet {wallet.id}")
             return True
 
+    @staticmethod
+    def process_tatum_deposit(payload: dict) -> bool:
+        """
+        Process a Tatum incoming transaction webhook.
+        Tatum payload shape:
+          {
+            "address": "bc1q...",
+            "txId": "abc123...",
+            "amount": "0.05",
+            "asset": "BTC",
+            "confirmations": 2,
+            "blockNumber": 123456
+          }
+        """
+        from wallets.models import DepositAddress
+
+        tx_hash = payload.get("txId") or payload.get("hash")
+        address = payload.get("address")
+        amount_str = payload.get("amount", "0")
+        confirmations = int(payload.get("confirmations", 0))
+        raw_asset = (payload.get("asset") or "").lower()
+
+        if not tx_hash or not address:
+            logger.error("Tatum webhook missing txId or address")
+            return False
+
+        # Idempotency — use tx_hash as the unique reference
+        if Deposit.objects.filter(quidax_reference=tx_hash).exists():
+            logger.info(f"Deposit {tx_hash} already processed.")
+            return True
+
+        # Map Tatum asset to our AssetChoices
+        asset_map = {"btc": "btc", "eth": "eth", "usdt": "usdt", "usdc": "usdc"}
+        asset = asset_map.get(raw_asset)
+        if not asset:
+            logger.warning(f"Unknown asset in Tatum webhook: {raw_asset}")
+            return False
+
+        # Minimum confirmations check
+        REQUIRED_CONFIRMATIONS = {"btc": 2, "eth": 12, "usdt": 12, "usdc": 12}
+        required = REQUIRED_CONFIRMATIONS.get(asset, 12)
+        if confirmations < required:
+            # Tatum will fire again when confirmations increase
+            logger.info(f"Tatum deposit {tx_hash} needs more confirmations ({confirmations}/{required})")
+            return True  # return True so Tatum gets 200 and retries
+
+        # Look up which user owns this address
+        try:
+            deposit_addr = DepositAddress.objects.select_related("wallet__user").get(address=address)
+        except DepositAddress.DoesNotExist:
+            logger.warning(f"No DepositAddress found for address {address}")
+            return False
+
+        wallet = deposit_addr.wallet
+        network = deposit_addr.network
+
+        try:
+            crypto_amount = Decimal(str(amount_str))
+        except Exception:
+            logger.error(f"Invalid amount in Tatum payload: {amount_str}")
+            return False
+
+        with transaction.atomic():
+            rate_info = RateService.calculate_ngn_amount(asset, crypto_amount)
+            ngn_amount = rate_info["ngn_amount"]
+            user_rate = rate_info["user_rate"]
+            margin = rate_info["margin_percentage"]
+
+            deposit = Deposit.objects.create(
+                wallet=wallet,
+                asset=asset,
+                network=network,
+                crypto_amount=crypto_amount,
+                rate_applied=user_rate,
+                margin_applied=margin,
+                ngn_amount=ngn_amount,
+                quidax_reference=tx_hash,     # repurposing this field for tx_hash
+                status=DepositStatus.CONVERTED,
+            )
+
+            wallet.credit(ngn_amount)
+
+            description = f"Received {crypto_amount} {asset.upper()} → ₦{ngn_amount:,.2f}"
+            Transaction.objects.create(
+                wallet=wallet,
+                type=TransactionType.DEPOSIT,
+                amount=ngn_amount,
+                description=description,
+                status=DepositStatus.CONVERTED,
+                related_deposit=deposit,
+            )
+
+        # Notifications (outside atomic block)
+        send_deposit_received_email(
+            user=wallet.user,
+            asset=asset,
+            crypto_amount=str(crypto_amount),
+            ngn_amount=f"{ngn_amount:,.2f}"
+        )
+        
+        from notifications.models import Notification
+        Notification.objects.create(
+            user=wallet.user,
+            type='trade',
+            title='Deposit Received & Converted',
+            body=f'Your deposit of {crypto_amount} {asset.upper()} was successfully converted to ₦{ngn_amount:,.2f}.'
+        )
+
+        from notifications.telegram import TelegramNotifier
+        TelegramNotifier.deposit_received(
+            full_name=wallet.user.full_name,
+            email=wallet.user.email,
+            asset=asset,
+            crypto_amount=str(crypto_amount),
+            ngn_amount=f"{ngn_amount:,.2f}",
+            rate=f"{user_rate:,.2f}",
+            reference=tx_hash,
+        )
+
+        logger.info(f"Tatum deposit {tx_hash} processed for wallet {wallet.id}")
+        return True
+
 
 class WithdrawalService:
     """Handles NGN withdrawals to bank accounts."""
@@ -232,6 +354,14 @@ class WithdrawalService:
             txn_log.status = WithdrawalStatus.PROCESSING
             txn_log.save()
 
+            from notifications.models import Notification
+            Notification.objects.create(
+                user=user,
+                type='withdrawal',
+                title='Withdrawal Requested',
+                body=f'Your withdrawal of ₦{amount:,.2f} to {bank_account.bank_name} is processing.'
+            )
+
             from notifications.telegram import TelegramNotifier
             TelegramNotifier.withdrawal_requested(
                 full_name=user.full_name,
@@ -253,6 +383,14 @@ class WithdrawalService:
                 withdrawal.save()
                 txn_log.status = WithdrawalStatus.FAILED
                 txn_log.save()
+                
+                from notifications.models import Notification
+                Notification.objects.create(
+                    user=user,
+                    type='withdrawal',
+                    title='Withdrawal Failed',
+                    body=f'Your withdrawal of ₦{amount:,.2f} could not be initiated and has been refunded.'
+                )
             raise ValueError("Failed to initiate transfer with payment provider. Funds have been refunded.")
 
         return {
@@ -296,6 +434,14 @@ class WithdrawalService:
                 amount=f"{withdrawal.amount:,.2f}",
                 bank_name=withdrawal.bank_account.bank_name,
                 account_number=withdrawal.bank_account.account_number
+            )
+
+            from notifications.models import Notification
+            Notification.objects.create(
+                user=withdrawal.wallet.user,
+                type='withdrawal',
+                title='Withdrawal Successful',
+                body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} to {withdrawal.bank_account.bank_name} is complete.'
             )
 
             from notifications.telegram import TelegramNotifier
