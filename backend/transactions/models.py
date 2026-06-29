@@ -66,6 +66,13 @@ class Deposit(models.Model):
         decimal_places=2,
         help_text='Margin percentage applied at conversion',
     )
+    ngn_usd_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='NGN/USD rate at time of conversion (user-friendly rate shown on Live Rates)',
+    )
     ngn_amount = models.DecimalField(
         max_digits=20,
         decimal_places=2,

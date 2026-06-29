@@ -131,11 +131,27 @@ class RateService:
         """
         Calculate the NGN amount a user receives for a given crypto amount.
         Returns dict with rate details for record-keeping.
+        Also returns ngn_usd_rate — the user-friendly NGN/USD rate shown on the Live Rates panel.
         """
         market_rate = RateService.get_market_rate(asset)
         margin = RateService.get_margin_percentage()
         user_rate = RateService.get_user_rate(asset)
         ngn_amount = (crypto_amount * user_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+        # Determine the user-friendly NGN/USD rate (matches what Live Rates panel shows)
+        settings_obj = SystemSettings.get_settings()
+        if settings_obj.ngn_usd_buy_rate > Decimal('0'):
+            ngn_usd_rate = settings_obj.ngn_usd_buy_rate
+        else:
+            # Derive it from rate_usd if available
+            try:
+                cached = CachedRate.objects.get(asset=asset.lower())
+                if cached.rate_usd and cached.rate_usd > Decimal('0'):
+                    ngn_usd_rate = (market_rate / cached.rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                else:
+                    ngn_usd_rate = None
+            except CachedRate.DoesNotExist:
+                ngn_usd_rate = None
 
         return {
             'market_rate': market_rate,
@@ -143,6 +159,7 @@ class RateService:
             'margin_percentage': margin,
             'crypto_amount': crypto_amount,
             'ngn_amount': ngn_amount,
+            'ngn_usd_rate': ngn_usd_rate,
         }
 
     @staticmethod

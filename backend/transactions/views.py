@@ -73,7 +73,9 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             coin = d.asset.upper()
             network = d.network
             crypto_amount = d.crypto_amount
-            rate = d.rate_applied
+            # Prefer the user-friendly NGN/USD rate (e.g. 1370) stored at trade time.
+            # Fall back to rate_applied (per-coin NGN rate) for older records.
+            rate = d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied
         elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
             w = t.related_withdrawal
             acc_num = w.bank_account.account_number
@@ -129,7 +131,9 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
             coin = d.asset.upper()
             network = d.network
             crypto_amount = d.crypto_amount
-            rate = d.rate_applied
+            # Prefer the user-friendly NGN/USD rate (e.g. 1370) stored at trade time.
+            # Fall back to rate_applied (per-coin NGN rate) for older records.
+            rate = d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied
         elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
             w = t.related_withdrawal
             acc_num = w.bank_account.account_number

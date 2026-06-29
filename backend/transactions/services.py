@@ -82,6 +82,7 @@ class DepositService:
             ngn_amount = rate_info['ngn_amount']
             user_rate = rate_info['user_rate']
             margin = rate_info['margin_percentage']
+            ngn_usd_rate = rate_info.get('ngn_usd_rate')
 
             # 2. Create Deposit record
             deposit = Deposit.objects.create(
@@ -91,6 +92,7 @@ class DepositService:
                 crypto_amount=crypto_amount,
                 rate_applied=user_rate,
                 margin_applied=margin,
+                ngn_usd_rate=ngn_usd_rate,
                 ngn_amount=ngn_amount,
                 quidax_reference=quidax_reference,
                 status=DepositStatus.CONVERTED,
@@ -199,6 +201,7 @@ class DepositService:
             ngn_amount = rate_info["ngn_amount"]
             user_rate = rate_info["user_rate"]
             margin = rate_info["margin_percentage"]
+            ngn_usd_rate = rate_info.get("ngn_usd_rate")
 
             deposit = Deposit.objects.create(
                 wallet=wallet,
@@ -207,6 +210,7 @@ class DepositService:
                 crypto_amount=crypto_amount,
                 rate_applied=user_rate,
                 margin_applied=margin,
+                ngn_usd_rate=ngn_usd_rate,
                 ngn_amount=ngn_amount,
                 quidax_reference=tx_hash,     # repurposing this field for tx_hash
                 status=DepositStatus.CONVERTED,
