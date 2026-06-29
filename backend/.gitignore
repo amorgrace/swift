@@ -27,4 +27,5 @@ secuirty.md
 # Build Scripts & Raw HTML
 build_templates.py
 send_test_email.py
+enforce_dark_mode.py
 newemails.html

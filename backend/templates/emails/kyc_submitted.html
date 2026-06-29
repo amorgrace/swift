@@ -1,617 +1,120 @@
 <!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" dir="ltr"
+      style="background-color:#050505 !important;">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="color-scheme" content="dark">
-<meta name="supported-color-schemes" content="dark">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-.et {
-      background: #050505 !important; color: #ffffff !important;
-      padding: 40px 20px;
-      font-family: 'Outfit', Arial, sans-serif;
-    }
-
-    .et-wrap {
-      max-width: 560px;
-      margin: 0 auto;
-    }
-
-    /* header */
-    .et-header {
-      text-align: center;
-      padding: 32px 0 24px;
-    }
-
-    .et-logo {
-      font-family: 'Bebas Neue', Impact, sans-serif;
-      font-size: 28px;
-      letter-spacing: 2px;
-      color: #fff;
-    }
-
-    .et-logo-accent {
-      color: #0ECB81;
-    }
-
-    .et-logo-tagline {
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: #555;
-      margin-top: 4px;
-    }
-
-    /* hero card */
-    .et-hero {
-      background: #101010;
-      border: 1px solid #1a1a1a;
-      border-radius: 14px;
-      overflow: hidden;
-      margin-bottom: 16px;
-    }
-
-    .et-hero-top {
-      height: 4px;
-      background: linear-gradient(90deg, #0ECB81, #0aab6a);
-    }
-
-    .et-hero-top.amber {
-      background: linear-gradient(90deg, #F5A623, #d4891a);
-    }
-
-    .et-hero-top.red {
-      background: linear-gradient(90deg, #F6465D, #d63a4f);
-    }
-
-    .et-hero-top.blue {
-      background: linear-gradient(90deg, #3B82F6, #2563eb);
-    }
-
-    .et-hero-body {
-      padding: 32px 32px 28px;
-    }
-
-    .et-icon-wrap {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      margin: 0 auto 20px;
-      text-align: center;
-      line-height: 52px;
-      font-size: 24px;
-    }
-
-    .et-icon-wrap.green {
-      background: rgba(14, 203, 129, 0.12);
-    }
-
-    .et-icon-wrap.amber {
-      background: rgba(245, 166, 35, 0.12);
-    }
-
-    .et-icon-wrap.red {
-      background: rgba(246, 70, 93, 0.12);
-    }
-
-    .et-icon-wrap.blue {
-      background: rgba(59, 130, 246, 0.12);
-    }
-
-    .et-eyebrow {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 8px;
-    }
-
-    .et-eyebrow.green {
-      color: #0ECB81;
-    }
-
-    .et-eyebrow.amber {
-      color: #F5A623;
-    }
-
-    .et-eyebrow.red {
-      color: #F6465D;
-    }
-
-    .et-eyebrow.blue {
-      color: #3B82F6;
-    }
-
-    .et-title {
-      font-size: 22px;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 10px;
-      line-height: 1.3;
-    }
-
-    .et-subtitle {
-      font-size: 14px;
-      color: #888;
-      line-height: 1.65;
-    }
-
-    /* divider */
-    .et-divider {
-      border: none;
-      border-top: 1px solid #1a1a1a;
-      margin: 24px 0;
-    }
-
-    /* amount display */
-    .et-amount-block {
-      text-align: center;
-      padding: 20px 0 8px;
-    }
-
-    .et-amount-label {
-      font-size: 12px;
-      color: #555;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .et-amount-value {
-      font-family: 'Bebas Neue', Impact, sans-serif;
-      font-size: 52px;
-      letter-spacing: 2px;
-      line-height: 1;
-    }
-
-    .et-amount-value.green {
-      color: #0ECB81;
-    }
-
-    .et-amount-value.amber {
-      color: #F5A623;
-    }
-
-    .et-amount-value.white {
-      color: #fff;
-    }
-
-    .et-amount-sub {
-      font-size: 13px;
-      color: #555;
-      margin-top: 6px;
-      font-family: 'DM Mono', monospace;
-    }
-
-    /* detail rows */
-    .et-detail-row {
-      display: table;
-      width: 100%;
-      padding: 11px 0;
-      border-bottom: 1px solid #141414;
-      font-size: 13px;
-    }
-
-    .et-detail-row:last-child {
-      border-bottom: none;
-    }
-
-    .et-detail-key {
-      display: table-cell;
-      text-align: left;
-      color: #555;
-    }
-
-    .et-detail-val {
-      display: table-cell;
-      text-align: right;
-      color: #ccc;
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-    }
-
-    .et-detail-val.green {
-      color: #0ECB81;
-    }
-
-    .et-detail-val.amber {
-      color: #F5A623;
-    }
-
-    .et-detail-val.red {
-      color: #F6465D;
-    }
-
-    /* status badge */
-    .et-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      text-align: center;
-    }
-
-    .et-badge-dot {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-
-    .et-badge.green {
-      background: rgba(14, 203, 129, 0.12);
-      color: #0ECB81;
-    }
-
-    .et-badge.amber {
-      background: rgba(245, 166, 35, 0.12);
-      color: #F5A623;
-    }
-
-    .et-badge.red {
-      background: rgba(246, 70, 93, 0.12);
-      color: #F6465D;
-    }
-
-    .et-badge-dot.green {
-      background: #0ECB81;
-    }
-
-    .et-badge-dot.amber {
-      background: #F5A623;
-    }
-
-    .et-badge-dot.red {
-      background: #F6465D;
-    }
-
-    /* crypto pill */
-    .et-crypto-pill {
-      display: inline-block;
-      background: #141414;
-      border: 1px solid #222;
-      border-radius: 8px;
-      padding: 6px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #fff;
-      vertical-align: middle;
-    }
-
-    .et-crypto-icon {
-      display: inline-block;
-      width: 24px;
-      height: 24px;
-      border-radius: 6px;
-      margin-right: 8px;
-      vertical-align: middle;
-      text-align: center;
-      line-height: 24px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    /* CTA button */
-    .et-cta-wrap {
-      text-align: center;
-      padding: 24px 0;
-      margin: 16px 0;
-    }
-
-    .et-cta {
-      display: inline-block;
-      background: #0ECB81;
-      color: #000;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 13px 36px;
-      border-radius: 10px;
-      text-decoration: none;
-      letter-spacing: 0.3px;
-    }
-
-    .et-cta.ghost {
-      background: transparent;
-      color: #0ECB81;
-      border: 1.5px solid rgba(14, 203, 129, 0.35);
-    }
-
-    .et-cta.amber-btn {
-      background: #F5A623;
-      color: #000;
-    }
-
-    .et-cta.red-btn {
-      background: transparent;
-      color: #F6465D;
-      border: 1.5px solid rgba(246, 70, 93, 0.35);
-    }
-
-    /* info card */
-    .et-info-card {
-      background: #0c0c0c;
-      border: 1px solid #1a1a1a;
-      border-radius: 10px;
-      padding: 16px 20px;
-      margin-top: 16px;
-    }
-
-    .et-info-card-title {
-      font-size: 11px;
-      color: #555;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 10px;
-    }
-
-    .et-info-card-text {
-      font-size: 13px;
-      color: #777;
-      line-height: 1.6;
-    }
-
-    /* wallet address */
-    .et-address-box {
-      background: #0c0c0c;
-      border: 1px solid #1a1a1a;
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: #555;
-      word-break: break-all;
-      margin-top: 8px;
-    }
-
-    /* progress bar */
-    .et-progress-wrap {
-      margin: 20px 0;
-    }
-
-    .et-progress-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #555;
-      margin-bottom: 8px;
-    }
-
-    .et-progress-track {
-      height: 4px;
-      background: #1a1a1a;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .et-progress-fill {
-      height: 100%;
-      border-radius: 2px;
-    }
-
-    /* steps */
-    .et-steps {
-      display: flex;
-      flex-direction: column;
-      gap: 0;
-      margin: 16px 0;
-    }
-
-    .et-step {
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-      padding: 10px 0;
-      position: relative;
-    }
-
-    .et-step-left {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .et-step-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
-      flex-shrink: 0;
-    }
-
-    .et-step-num.done {
-      background: rgba(14, 203, 129, 0.15);
-      color: #0ECB81;
-    }
-
-    .et-step-num.active {
-      background: rgba(245, 166, 35, 0.15);
-      color: #F5A623;
-    }
-
-    .et-step-num.pending {
-      background: #141414;
-      color: #333;
-    }
-
-    .et-step-line {
-      width: 1px;
-      flex: 1;
-      min-height: 16px;
-      margin-top: 4px;
-    }
-
-    .et-step-line.done {
-      background: rgba(14, 203, 129, 0.2);
-    }
-
-    .et-step-line.pending {
-      background: #1a1a1a;
-    }
-
-    .et-step-content {
-      padding-top: 4px;
-    }
-
-    .et-step-title {
-      font-size: 13px;
-      font-weight: 500;
-      color: #ccc;
-      margin-bottom: 2px;
-    }
-
-    .et-step-title.done {
-      color: #0ECB81;
-    }
-
-    .et-step-desc {
-      font-size: 12px;
-      color: #444;
-    }
-
-    /* footer */
-    .et-footer {
-      text-align: center;
-      padding: 28px 0 8px;
-    }
-
-    .et-footer-logo {
-      font-family: 'Bebas Neue', Impact, sans-serif;
-      font-size: 18px;
-      letter-spacing: 2px;
-      color: #2e2e2e;
-      margin-bottom: 12px;
-    }
-
-    .et-footer-logo span {
-      color: #1a5c3a;
-    }
-
-    .et-footer-links {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-bottom: 14px;
-    }
-
-    .et-footer-link {
-      font-size: 12px;
-      color: #333;
-      text-decoration: none;
-    }
-
-    .et-footer-text {
-      font-size: 11px;
-      color: #2a2a2a;
-      line-height: 1.6;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-
-    .et-footer-divider {
-      border-top: 1px solid #111;
-      margin: 16px 0;
-    }
-
-    /* ── Syntax highlight colors ── */
-    .hl-tag {
-      color: #f92672;
-    }
-
-    .hl-attr {
-      color: #a6e22e;
-    }
-
-    .hl-val {
-      color: #e6db74;
-    }
-
-    .hl-cmt {
-      color: #444;
-      font-style: italic;
-    }
-
-    .hl-green {
-      color: #0ECB81;
-    }
-
-    .hl-text {
-      color: #ccc;
-    }
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="dark only">
+<meta name="supported-color-schemes" content="dark only">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings>
+<o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings></xml></noscript>
+<style>table { border-collapse: collapse; } td { font-family: Arial, sans-serif; }</style>
+<![endif]-->
+<style type="text/css">
+  :root { color-scheme: dark only !important; }
+  /* Gmail */
+  u + .body { background-color: #050505 !important; }
+  /* Outlook */
+  [data-ogsc], [data-ogsb] { background-color: #050505 !important; color: #ffffff !important; }
+  /* Apple Mail */
+  @media (prefers-color-scheme: dark) {
+    body, .body, .email-bg { background-color: #050505 !important; color: #fff !important; }
+    td, th { background-color: inherit !important; }
+  }
+  /* Override any client that tries to lighten */
+  body, .body { background-color: #050505 !important; }
+  a { color: #0ECB81; }
 </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #050505 !important; color: #ffffff !important; -webkit-font-smoothing: antialiased;">
-<table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#050505" style="background-color: #050505;">
+<body class="body" style="margin:0;padding:0;width:100%;background-color:#050505 !important;color:#ffffff;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;-ms-text-size-adjust:100%;">
+
+<!-- Outermost wrapper table — forces Gmail dark bg -->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+       bgcolor="#050505" style="background-color:#050505 !important;width:100%;margin:0;padding:0;">
+<tr>
+<td align="center" valign="top"
+    bgcolor="#050505" style="background-color:#050505 !important;padding:0;">
+
+  <!-- Padding table -->
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         bgcolor="#050505" style="background-color:#050505 !important;">
   <tr>
-    <td align="center" style="background-color: #050505;">
-<div class="et">
-<div class="et-wrap">
+  <td bgcolor="#050505" style="background-color:#050505 !important;padding:40px 20px;">
 
-  <div class="et-header">
-    <div class="et-logo">SWIFT<span class="et-logo-accent">TRADE</span></div>
-    <div class="et-logo-tagline">Trade Crypto · Receive Naira</div>
-  </div>
+    <!-- Content table — 560px centered -->
+    <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0"
+           align="center" bgcolor="#050505"
+           style="background-color:#050505;max-width:560px;width:100%;margin:0 auto;">
 
-  <div class="et-hero">
-    <div class="et-hero-top amber"></div>
-    <div class="et-hero-body">
-      <div class="et-icon-wrap amber">⏳</div>
-      <div class="et-eyebrow amber">Under Review</div>
-      <div class="et-title">Hi <strong>{{ full_name }}</strong>, your documents are being reviewed.</div>
-      <div class="et-subtitle">Our compliance team is verifying your identity. This usually takes 10–30 minutes during business hours (Mon–Sat, 8am–8pm WAT).</div>
 
-      <hr class="et-divider" />
-
-      <div class="et-detail-row">
-        <span class="et-detail-key">Submitted</span>
-        <span class="et-detail-val">24 Jun 2026, 13:20 WAT</span>
-      </div>
-      <div class="et-detail-row">
-        <span class="et-detail-key">ID Type</span>
-        <span class="et-detail-val">National Identification Number (NIN)</span>
-      </div>
-      <div class="et-detail-row">
-        <span class="et-detail-key">Selfie Check</span>
-        <span class="et-detail-val" style="text-align: right; vertical-align: middle;"><span class="et-badge green" style="font-size:10px;"><span class="et-badge-dot green"></span></span>Passed</span>
-      </div>
-      <div class="et-detail-row">
-        <span class="et-detail-key">Document Check</span>
-        <span class="et-detail-val" style="text-align: right; vertical-align: middle;"><span class="et-badge amber" style="font-size:10px;"><span class="et-badge-dot amber"></span></span>In Review</span>
-      </div>
-      <div class="et-detail-row">
-        <span class="et-detail-key">Overall Status</span>
-        <span class="et-detail-val" style="text-align: right; vertical-align: middle;"><span class="et-badge amber"><span class="et-badge-dot amber"></span></span>Pending Verification</span>
-      </div>
-
-      <hr class="et-divider" />
-      <div class="et-cta-wrap" style="display: inline-block; margin: 12px 6px;" style="text-align: center; padding: 30px 0; margin: 20px 0;" >
-        <a href="#" class="et-cta ghost" style="display: inline-block; margin: 12px 6px;">Check KYC Status</a>
-      </div>
-    </div>
-  </div>
-
-  <div class="et-info-card">
-    <div class="et-info-card-title">While you wait</div>
-    <div class="et-info-card-text">You can still deposit crypto and view market rates. Withdrawals and higher trade limits will unlock once your identity is verified.</div>
-  </div>
-
-  <div class="et-footer">
-    <div class="et-footer-divider"></div>
-    <div class="et-footer-logo">SWIFT<span>TRADE</span></div>
-    </div>
-
-</div>
+    <!-- Header -->
+    <tr>
+    <td align="center" bgcolor="#050505" style="background-color:#050505;padding:32px 0 24px;">
+      <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:28px;letter-spacing:2px;color:#ffffff;">SWIFT</span><span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:28px;letter-spacing:2px;color:#0ECB81;">TRADE</span>
+      <br>
+      <span style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#555555;">Trade Crypto &middot; Receive Naira</span>
     </td>
+    </tr>
+    <tr>
+    <td bgcolor="#050505" style="background-color:#050505;padding:0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+             style="background-color:#101010;border:1px solid #1a1a1a;border-radius:14px;overflow:hidden;">
+      <tr><td style="height:4px;background:linear-gradient(90deg,#F5A623,#d4891a);font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr>
+      <td bgcolor="#101010" style="background-color:#101010;padding:32px 32px 28px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 20px;">
+      <tr><td style="width:52px;height:52px;border-radius:14px;background-color:rgba(245,166,35,0.12);text-align:center;line-height:52px;font-size:24px;">📋</td></tr>
+      </table>
+        <p style="margin:0 0 8px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#F5A623;">KYC Submitted</span></p>
+        <h1 style="font-size:22px;font-weight:600;color:#ffffff;margin:0 0 10px;line-height:1.3;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">Documents under review.</h1>
+        <p style="font-size:14px;color:#888888;line-height:1.65;margin:0 0 20px;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">Hi <strong style="color:#ffffff;">{{ full_name }}</strong>, your documents are being reviewed. We'll notify you once the process is complete. This usually takes a few minutes.</p>
+
+        <!-- Info card -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="background-color:#0c0c0c;border:1px solid #1a1a1a;border-radius:10px;">
+        <tr><td style="padding:16px 20px;" bgcolor="#0c0c0c">
+          <span style="font-size:11px;color:#555555;text-transform:uppercase;letter-spacing:1.5px;">What happens next?</span><br><br>
+          <span style="font-size:13px;color:#777777;line-height:1.6;">Our team will verify your identity documents. You will receive an email once your account has been verified or if we need additional information.</span>
+        </td></tr>
+        </table>
+
+      </td>
+      </tr>
+      </table>
+    </td>
+    </tr>
+    <!-- Footer -->
+    <tr>
+    <td bgcolor="#050505" style="background-color:#050505;padding:28px 0 8px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr><td style="border-top:1px solid #111111;padding:0;height:1px;font-size:0;line-height:0;" bgcolor="#050505">&nbsp;</td></tr>
+      <tr>
+      <td align="center" bgcolor="#050505" style="background-color:#050505;padding:16px 0 0;">
+        <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:2px;color:#2e2e2e;">SWIFT</span><span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:2px;color:#1a5c3a;">TRADE</span>
+        <br>
+        <span style="font-size:11px;color:#2a2a2a;">&copy; {{ year }} SwiftTrade. All rights reserved.</span>
+      </td>
+      </tr>
+      </table>
+    </td>
+    </tr>
+
+    </table>
+    <!-- /Content table -->
+
+  </td>
   </tr>
+  </table>
+  <!-- /Padding table -->
+
+</td>
+</tr>
 </table>
+<!-- /Outermost wrapper -->
+
 </body>
 </html>
