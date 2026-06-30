@@ -177,7 +177,7 @@ def get_deposits(request):
             asset=d.asset,
             network=d.network,
             crypto_amount=d.crypto_amount,
-            rate_applied=d.rate_applied,
+            rate_applied=d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied,
             ngn_amount=d.ngn_amount,
             status=d.status,
             created_at=d.created_at.isoformat()
