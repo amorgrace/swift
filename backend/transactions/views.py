@@ -170,9 +170,13 @@ def get_deposits(request):
     except NGNWallet.DoesNotExist:
         return []
 
-    deposits = Deposit.objects.filter(wallet=wallet).order_by('-created_at')
-    return [
-        DepositSchema(
+    deposits = Deposit.objects.filter(wallet=wallet).prefetch_related('transaction_set').order_by('-created_at')
+    
+    res = []
+    for d in deposits:
+        tx = d.transaction_set.first()
+        ref = tx.reference if tx else f"TRD-{d.id}"
+        res.append(DepositSchema(
             id=d.id,
             asset=d.asset,
             network=d.network,
@@ -180,9 +184,10 @@ def get_deposits(request):
             rate_applied=d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied,
             ngn_amount=d.ngn_amount,
             status=d.status,
-            created_at=d.created_at.isoformat()
-        ) for d in deposits
-    ]
+            created_at=d.created_at.isoformat(),
+            reference=ref
+        ))
+    return res
 
 
 @router.get('/withdrawals', response=List[WithdrawalSchema])

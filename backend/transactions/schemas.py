@@ -12,6 +12,7 @@ class DepositSchema(BaseModel):
     ngn_amount: Decimal
     status: str
     created_at: str
+    reference: Optional[str] = None
 
 
 class WithdrawalRequestSchema(BaseModel):
