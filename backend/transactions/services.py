@@ -12,7 +12,9 @@ from kyc.models import KYCVerification, KYCStatus
 from authenticator.email import (
     send_deposit_received_email,
     send_withdrawal_completed_email,
-    send_withdrawal_failed_email
+    send_withdrawal_failed_email,
+    send_withdrawal_initiated_email,
+    send_admin_withdrawal_pending_email
 )
 from .models import (
     Deposit,
@@ -30,109 +32,7 @@ logger = logging.getLogger(__name__)
 class DepositService:
     """Handles processing of incoming crypto deposits via webhook."""
 
-    @staticmethod
-    def process_deposit_webhook(payload: dict) -> bool:
-        """
-        Process a Quidax deposit.successful webhook payload.
-        Idempotent: skips if quidax_reference already exists.
-        """
-        quidax_reference = payload.get('id')
-        if not quidax_reference:
-            logger.error("Webhook payload missing 'id' (quidax_reference)")
-            return False
-
-        # Idempotency check
-        if Deposit.objects.filter(quidax_reference=quidax_reference).exists():
-            logger.info(f"Deposit {quidax_reference} already processed, skipping.")
-            return True
-
-        # Extract data
-        # Note: adjust paths based on actual Quidax webhook structure
-        quidax_user_id = payload.get('user', {}).get('id')
-        asset = payload.get('currency', '').lower()
-        network = payload.get('network', '').lower()
-        crypto_amount_str = payload.get('amount')
-
-        if not all([quidax_user_id, asset, crypto_amount_str]):
-            logger.error("Webhook payload missing required fields (user.id, currency, or amount)")
-            return False
-
-        try:
-            crypto_amount = Decimal(str(crypto_amount_str))
-        except Exception:
-            logger.error(f"Invalid amount format in webhook: {crypto_amount_str}")
-            return False
-
-        # Find wallet
-        try:
-            wallet = NGNWallet.objects.get(quidax_user_id=quidax_user_id)
-        except NGNWallet.DoesNotExist:
-            logger.error(f"No wallet found for Quidax user {quidax_user_id}")
-            return False
-
-        with transaction.atomic():
-            # 1. Fetch rates and calculate NGN
-            try:
-                rate_info = RateService.calculate_ngn_amount(asset, crypto_amount)
-            except ValueError as e:
-                logger.error(f"Rate calculation failed: {e}")
-                # We could save it as PENDING and retry later, but for simplicity we fail here
-                return False
-
-            ngn_amount = rate_info['ngn_amount']
-            user_rate = rate_info['user_rate']
-            margin = rate_info['margin_percentage']
-            ngn_usd_rate = rate_info.get('ngn_usd_rate')
-
-            # 2. Create Deposit record
-            deposit = Deposit.objects.create(
-                wallet=wallet,
-                asset=asset,
-                network=network,
-                crypto_amount=crypto_amount,
-                rate_applied=user_rate,
-                margin_applied=margin,
-                ngn_usd_rate=ngn_usd_rate,
-                ngn_amount=ngn_amount,
-                quidax_reference=quidax_reference,
-                status=DepositStatus.CONVERTED,
-            )
-
-            # 3. Credit wallet balance
-            wallet.credit(ngn_amount)
-
-            # 4. Create Transaction log
-            description = f"Received {crypto_amount} {asset.upper()} → ₦{ngn_amount:,.2f}"
-            Transaction.objects.create(
-                wallet=wallet,
-                type=TransactionType.DEPOSIT,
-                amount=ngn_amount,
-                description=description,
-                status=DepositStatus.CONVERTED,
-                related_deposit=deposit,
-            )
-
-            # Send Email
-            send_deposit_received_email(
-                user=wallet.user,
-                asset=asset,
-                crypto_amount=str(crypto_amount),
-                ngn_amount=f"{ngn_amount:,.2f}"
-            )
-
-            from notifications.telegram import TelegramNotifier
-            TelegramNotifier.deposit_received(
-                full_name=wallet.user.full_name,
-                email=wallet.user.email,
-                asset=asset,
-                crypto_amount=str(crypto_amount),
-                ngn_amount=f"{ngn_amount:,.2f}",
-                rate=f"{user_rate:,.2f}",
-                reference=quidax_reference,
-            )
-
-            logger.info(f"Successfully processed deposit {quidax_reference} for wallet {wallet.id}")
-            return True
+    # process_deposit_webhook (Quidax) removed.
 
     @staticmethod
     def process_tatum_deposit(payload: dict) -> bool:
@@ -297,14 +197,7 @@ class WithdrawalService:
         except KYCVerification.DoesNotExist:
             raise ValueError("KYC not submitted. Please submit KYC documents to enable withdrawals.")
 
-        if not bank_account.paystack_recipient_code:
-            # Try creating it now if it was missing
-            try:
-                recipient_code = PaystackService.create_transfer_recipient(bank_account)
-                bank_account.paystack_recipient_code = recipient_code
-                bank_account.save()
-            except Exception as e:
-                raise ValueError("Bank account is not properly linked with Paystack. Try removing and adding it again.")
+        # (Paystack recipient code check removed)
 
         # Calculate amounts
         fee = Decimal('100.00')
@@ -340,157 +233,48 @@ class WithdrawalService:
                 related_withdrawal=withdrawal,
             )
 
-        # Proceed to initiate transfer outside the main atomic block to avoid holding db locks during API call
-        # In a real app, this should be done via a Celery background task
-        try:
-            amount_kobo = int(amount_to_paystack * 100)
-            paystack_res = PaystackService.initiate_transfer(
-                amount_kobo,
-                bank_account.paystack_recipient_code,
-                withdrawal_ref
-            )
-            
-            # Update status
-            withdrawal.paystack_transfer_code = paystack_res.get('transfer_code', '')
-            withdrawal.status = WithdrawalStatus.PROCESSING
-            withdrawal.save()
+        # Notifications
+        send_withdrawal_initiated_email(
+            user=user,
+            amount=f"{amount:,.2f}",
+            bank_name=bank_account.bank_name,
+            account_number=bank_account.account_number
+        )
 
-            txn_log.status = WithdrawalStatus.PROCESSING
-            txn_log.save()
-
-            from notifications.models import Notification
-            Notification.objects.create(
-                user=user,
-                type='withdrawal',
-                title='Withdrawal Requested',
-                body=f'Your withdrawal of ₦{amount:,.2f} to {bank_account.bank_name} is processing.'
-            )
-
-            from notifications.telegram import TelegramNotifier
-            TelegramNotifier.withdrawal_requested(
-                full_name=user.full_name,
-                email=user.email,
+        from authenticator.models import User
+        admins = User.objects.filter(is_staff=True)
+        for admin in admins:
+            send_admin_withdrawal_pending_email(
+                admin_email=admin.email,
+                admin_name=admin.full_name,
+                user_name=user.full_name,
                 amount=f"{amount:,.2f}",
                 bank_name=bank_account.bank_name,
-                account_number=bank_account.account_number,
-                reference=withdrawal_ref,
+                account_number=bank_account.account_number
             )
 
-        except Exception as e:
-            logger.error(f"Paystack transfer initiation failed for {withdrawal_ref}: {e}")
-            # If initiation fails completely, we should reverse the debit
-            # (In production, be careful: maybe it timed out but succeeded on Paystack's end. 
-            # Webhook or query status will confirm. For simplicity here, we assume if initiation fails, it didn't go through.)
-            with transaction.atomic():
-                wallet.credit(amount)
-                withdrawal.status = WithdrawalStatus.FAILED
-                withdrawal.save()
-                txn_log.status = WithdrawalStatus.FAILED
-                txn_log.save()
-                
-                from notifications.models import Notification
-                Notification.objects.create(
-                    user=user,
-                    type='withdrawal',
-                    title='Withdrawal Failed',
-                    body=f'Your withdrawal of ₦{amount:,.2f} could not be initiated and has been refunded.'
-                )
-            raise ValueError("Failed to initiate transfer with payment provider. Funds have been refunded.")
+        from notifications.models import Notification
+        Notification.objects.create(
+            user=user,
+            type='withdrawal',
+            title='Withdrawal Requested',
+            body=f'Your withdrawal of ₦{amount:,.2f} to {bank_account.bank_name} has been requested and is pending review.'
+        )
+
+        from notifications.telegram import TelegramNotifier
+        TelegramNotifier.withdrawal_requested(
+            full_name=user.full_name,
+            email=user.email,
+            amount=f"{amount:,.2f}",
+            bank_name=bank_account.bank_name,
+            account_number=bank_account.account_number,
+            reference=withdrawal_ref,
+        )
 
         return {
-            "message": "Withdrawal is processing",
+            "message": "Withdrawal request received and pending review",
             "reference": withdrawal_ref,
             "status": withdrawal.status
         }
 
-    @staticmethod
-    def process_paystack_webhook(payload: dict) -> bool:
-        """
-        Process Paystack transfer.success or transfer.failed webhooks.
-        """
-        event = payload.get('event')
-        data = payload.get('data', {})
-        reference = data.get('reference')
-
-        if not reference:
-            logger.error("Paystack webhook payload missing reference")
-            return False
-
-        try:
-            withdrawal = Withdrawal.objects.get(paystack_reference=reference)
-            txn_log = Transaction.objects.get(reference=reference)
-        except (Withdrawal.DoesNotExist, Transaction.DoesNotExist):
-            logger.error(f"Withdrawal or Transaction log not found for reference {reference}")
-            return False
-
-        if withdrawal.status in [WithdrawalStatus.SUCCESS, WithdrawalStatus.FAILED, WithdrawalStatus.REVERSED]:
-            logger.info(f"Withdrawal {reference} already processed (status: {withdrawal.status}).")
-            return True
-
-        if event == 'transfer.success':
-            withdrawal.status = WithdrawalStatus.SUCCESS
-            withdrawal.save()
-            txn_log.status = WithdrawalStatus.SUCCESS
-            txn_log.save()
-
-            send_withdrawal_completed_email(
-                user=withdrawal.wallet.user,
-                amount=f"{withdrawal.amount:,.2f}",
-                bank_name=withdrawal.bank_account.bank_name,
-                account_number=withdrawal.bank_account.account_number
-            )
-
-            from notifications.models import Notification
-            Notification.objects.create(
-                user=withdrawal.wallet.user,
-                type='withdrawal',
-                title='Withdrawal Successful',
-                body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} to {withdrawal.bank_account.bank_name} is complete.'
-            )
-
-            from notifications.telegram import TelegramNotifier
-            TelegramNotifier.withdrawal_success(
-                full_name=withdrawal.wallet.user.full_name,
-                email=withdrawal.wallet.user.email,
-                amount=f"{withdrawal.amount:,.2f}",
-                bank_name=withdrawal.bank_account.bank_name,
-                account_number=withdrawal.bank_account.account_number,
-                reference=reference,
-            )
-
-            logger.info(f"Withdrawal {reference} successful")
-            return True
-
-        elif event in ['transfer.failed', 'transfer.reversed']:
-            with transaction.atomic():
-                # Refund the wallet
-                withdrawal.wallet.credit(withdrawal.amount)
-                
-                status = WithdrawalStatus.FAILED if event == 'transfer.failed' else WithdrawalStatus.REVERSED
-                withdrawal.status = status
-                withdrawal.save()
-                
-                txn_log.status = status
-                txn_log.save()
-            
-            send_withdrawal_failed_email(
-                user=withdrawal.wallet.user,
-                amount=f"{withdrawal.amount:,.2f}",
-                bank_name=withdrawal.bank_account.bank_name
-            )
-
-            from notifications.telegram import TelegramNotifier
-            TelegramNotifier.withdrawal_failed(
-                full_name=withdrawal.wallet.user.full_name,
-                email=withdrawal.wallet.user.email,
-                amount=f"{withdrawal.amount:,.2f}",
-                bank_name=withdrawal.bank_account.bank_name,
-                reference=reference,
-                reason="Transfer failed" if event == 'transfer.failed' else "Transfer reversed",
-            )
-
-            logger.info(f"Withdrawal {reference} {status}, funds refunded.")
-            return True
-
-        logger.warning(f"Unhandled Paystack event: {event}")
-        return False
+    # process_paystack_webhook removed.

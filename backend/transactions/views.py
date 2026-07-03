@@ -275,3 +275,98 @@ def get_admin_withdrawals(request, status: str = None):
     return results
 
 
+@router.post('/admin/withdrawals/{withdrawal_id}/approve', response={200: dict})
+def approve_withdrawal(request, withdrawal_id: int):
+    """Admin endpoint to approve a pending withdrawal."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    
+    from django.db import transaction
+    with transaction.atomic():
+        withdrawal = Withdrawal.objects.select_for_update().get(id=withdrawal_id)
+        if withdrawal.status != WithdrawalStatus.PENDING:
+            raise HttpError(400, "Withdrawal is not pending.")
+        
+        withdrawal.status = WithdrawalStatus.SUCCESS
+        withdrawal.save()
+        
+        txn_log = Transaction.objects.get(related_withdrawal=withdrawal)
+        txn_log.status = WithdrawalStatus.SUCCESS
+        txn_log.save()
+        
+    from authenticator.email import send_withdrawal_completed_email
+    send_withdrawal_completed_email(
+        user=withdrawal.wallet.user,
+        amount=f"{withdrawal.amount:,.2f}",
+        bank_name=withdrawal.bank_account.bank_name,
+        account_number=withdrawal.bank_account.account_number
+    )
+    
+    from notifications.models import Notification
+    Notification.objects.create(
+        user=withdrawal.wallet.user,
+        type='withdrawal',
+        title='Withdrawal Approved',
+        body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} to {withdrawal.bank_account.bank_name} has been approved and processed.'
+    )
+    
+    from notifications.telegram import TelegramNotifier
+    TelegramNotifier.withdrawal_success(
+        full_name=withdrawal.wallet.user.full_name,
+        email=withdrawal.wallet.user.email,
+        amount=f"{withdrawal.amount:,.2f}",
+        bank_name=withdrawal.bank_account.bank_name,
+        account_number=withdrawal.bank_account.account_number,
+        reference=withdrawal.paystack_reference,
+    )
+    
+    return {"message": "Withdrawal approved successfully."}
+
+@router.post('/admin/withdrawals/{withdrawal_id}/reject', response={200: dict})
+def reject_withdrawal(request, withdrawal_id: int):
+    """Admin endpoint to reject a pending withdrawal."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+        
+    from django.db import transaction
+    with transaction.atomic():
+        withdrawal = Withdrawal.objects.select_for_update().get(id=withdrawal_id)
+        if withdrawal.status != WithdrawalStatus.PENDING:
+            raise HttpError(400, "Withdrawal is not pending.")
+            
+        withdrawal.status = WithdrawalStatus.FAILED
+        withdrawal.save()
+        
+        txn_log = Transaction.objects.get(related_withdrawal=withdrawal)
+        txn_log.status = WithdrawalStatus.FAILED
+        txn_log.save()
+        
+        # Credit the user back
+        withdrawal.wallet.credit(withdrawal.amount)
+        
+    from authenticator.email import send_withdrawal_failed_email
+    send_withdrawal_failed_email(
+        user=withdrawal.wallet.user,
+        amount=f"{withdrawal.amount:,.2f}",
+        bank_name=withdrawal.bank_account.bank_name
+    )
+    
+    from notifications.models import Notification
+    Notification.objects.create(
+        user=withdrawal.wallet.user,
+        type='withdrawal',
+        title='Withdrawal Rejected',
+        body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} has been rejected. Funds have been returned to your wallet.'
+    )
+    
+    from notifications.telegram import TelegramNotifier
+    TelegramNotifier.withdrawal_failed(
+        full_name=withdrawal.wallet.user.full_name,
+        email=withdrawal.wallet.user.email,
+        amount=f"{withdrawal.amount:,.2f}",
+        bank_name=withdrawal.bank_account.bank_name,
+        reference=withdrawal.paystack_reference,
+        reason="Rejected by Admin"
+    )
+    
+    return {"message": "Withdrawal rejected and funds refunded."}

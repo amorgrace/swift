@@ -85,7 +85,7 @@ class TelegramNotifier:
             f"💰 <b>Crypto:</b> {crypto_amount} {asset.upper()}\n"
             f"💵 <b>NGN Credited:</b> ₦{ngn_amount}\n"
             f"📊 <b>Rate Used:</b> ₦{rate}/{asset.upper()}\n"
-            f"🔗 <b>Quidax Ref:</b> <code>{reference}</code>\n"
+            f"🔗 <b>Swift Ref:</b> <code>{reference}</code>\n"
             f"⏰ {cls._now()}"
         )
         cls._send(message)

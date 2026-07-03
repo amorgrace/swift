@@ -174,6 +174,39 @@ def send_deposit_received_email(user, asset: str, crypto_amount: str, ngn_amount
         },
     )
 
+def send_withdrawal_initiated_email(user, amount: str, bank_name: str, account_number: str) -> bool:
+    """Send an email when a withdrawal is requested and pending review."""
+    return send_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        subject="SwiftTrade – Withdrawal Request Received",
+        template_name="emails/withdrawal_initiated.html",
+        context={
+            "full_name": user.full_name,
+            "amount": amount,
+            "bank_name": bank_name,
+            "account_number": account_number,
+            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p UTC"),
+        },
+    )
+
+def send_admin_withdrawal_pending_email(admin_email: str, admin_name: str, user_name: str, amount: str, bank_name: str, account_number: str) -> bool:
+    """Send an email to admin when a new withdrawal is pending."""
+    return send_email(
+        to_email=admin_email,
+        to_name=admin_name,
+        subject="SwiftTrade Admin – New Withdrawal Request",
+        template_name="emails/admin_withdrawal_pending.html",
+        context={
+            "admin_name": admin_name,
+            "user_name": user_name,
+            "amount": amount,
+            "bank_name": bank_name,
+            "account_number": account_number,
+            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p UTC"),
+        },
+    )
+
 def send_withdrawal_completed_email(user, amount: str, bank_name: str, account_number: str) -> bool:
     """Send an email when a withdrawal successfully reaches the bank."""
     return send_email(

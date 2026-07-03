@@ -155,10 +155,8 @@ ANYMAIL = {
 CORS_ALLOWED_ORIGINS = os.environ['CORS_ALLOWED_ORIGINS'].split(',')
 
 # ---------------------------------------------------------------------------
-# Quidax, Paystack, CoinGecko, Conversion Settings
+# Paystack, CoinGecko, Conversion Settings
 # ---------------------------------------------------------------------------
-QUIDAX_API_KEY = os.environ.get('QUIDAX_API_KEY', '')
-QUIDAX_BASE_URL = os.environ.get('QUIDAX_API_BASE_URL', os.environ.get('QUIDAX_BASE_URL', 'https://openapi.quidax.io/exchange-open-api/api/v1'))
 
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
 PAYSTACK_BASE_URL = os.environ.get('PAYSTACK_BASE_URL', 'https://api.paystack.co')
