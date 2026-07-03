@@ -2,26 +2,12 @@ from pydantic import BaseModel, Field, HttpUrl
 from typing import Optional
 
 
-class KYCStep1Schema(BaseModel):
-    document_type: str = Field(..., examples=["nin", "bvn", "drivers_license"])
+class KYCSubmitSchema(BaseModel):
+    document_type: str = Field(..., examples=["nin", "drivers_license", "voters_card", "international_passport"])
     document_number: str = Field(..., min_length=5, max_length=50, examples=["12345678901"])
-    date_of_birth: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-
-class KYCStep1ResponseSchema(BaseModel):
-    status: str
-    document_type: str
-    verified_name: str
-    date_of_birth: Optional[str] = None
-
-class KYCStep2Schema(BaseModel):
+    document_url: HttpUrl
     selfie_url: HttpUrl
-
-class KYCStep2ResponseSchema(BaseModel):
-    status: str
-    message: str
-    remaining_attempts: Optional[int] = None
+    date_of_birth: Optional[str] = None
 
 class KYCResponseSchema(BaseModel):
     status: str

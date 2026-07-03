@@ -5,14 +5,15 @@ from django.conf import settings
 class KYCStatus(models.TextChoices):
     UNVERIFIED = 'unverified', 'Unverified'
     SUBMITTED = 'submitted', 'Submitted'
-    REJECTED = 'rejected', 'Rejected'
+    RESUBMISSION = 'resubmission', 'Resubmission'
     VERIFIED = 'verified', 'Verified'
 
 
 class DocumentType(models.TextChoices):
     NIN = 'nin', 'NIN'
-    BVN = 'bvn', 'BVN'
+    VOTERS_CARD = 'voters_card', "Voter's Card"
     DRIVERS_LICENSE = 'drivers_license', "Driver's License"
+    INTERNATIONAL_PASSPORT = 'international_passport', "International Passport"
 
 
 class KYCVerification(models.Model):
@@ -25,13 +26,13 @@ class KYCVerification(models.Model):
         related_name='kyc',
     )
     document_type = models.CharField(
-        max_length=20,
+        max_length=50,
         choices=DocumentType.choices,
         default=DocumentType.NIN,
     )
     document_number = models.CharField(
         max_length=50,
-        help_text='Document ID number (NIN, BVN, or License number)',
+        help_text="Document ID number (NIN, Voter's Card, License number, or Passport number)",
     )
     document_url = models.URLField(
         max_length=500,
@@ -43,16 +44,7 @@ class KYCVerification(models.Model):
         blank=True,
         help_text='Cloudinary URL of the user selfie for face matching',
     )
-    prembly_id_photo = models.TextField(
-        blank=True,
-        help_text='Base64 photo from Prembly BVN/NIN response',
-    )
-    liveness_confidence = models.FloatField(null=True, blank=True)
-    face_match_confidence = models.FloatField(null=True, blank=True)
-    prembly_verified_name = models.CharField(max_length=255, blank=True)
     date_of_birth = models.CharField(max_length=50, blank=True)
-    selfie_attempts = models.IntegerField(default=0)
-    needs_manual_review = models.BooleanField(default=False)
 
     status = models.CharField(
         max_length=20,
