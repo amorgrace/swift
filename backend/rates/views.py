@@ -118,6 +118,7 @@ def create_giftcard(request, payload: GiftCardCreateSchema):
     ).first()
 
 @router.put('/admin/giftcards/{giftcard_id}', response=GiftCardSchema)
+@router.patch('/admin/giftcards/{giftcard_id}', response=GiftCardSchema)
 def update_giftcard(request, giftcard_id: int, payload: GiftCardUpdateSchema):
     """Update a gift card configuration (Admin only)."""
     if not request.user.is_staff:
