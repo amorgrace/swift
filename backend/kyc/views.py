@@ -4,17 +4,14 @@ from django.conf import settings
 import httpx
 
 from pydantic import BaseModel
+from datetime import datetime
 
 from .schemas import (
     KYCSubmitSchema,
     KYCResponseSchema, AdminKYCResponseSchema
 )
 from .models import KYCVerification, KYCStatus, DocumentType
-from authenticator.email import (
-    send_kyc_approved_email, 
-    send_kyc_rejected_email,
-    send_kyc_submitted_email
-)
+from notifications.tasks import send_email_task, send_telegram_task, create_notification_task
 
 router = Router(tags=['KYC'])
 
@@ -45,24 +42,35 @@ def submit_kyc(request, payload: KYCSubmitSchema):
     kyc.status = KYCStatus.SUBMITTED
     kyc.save()
 
-    send_kyc_submitted_email(user=kyc.user)
-    
-    from notifications.models import Notification
-    Notification.objects.create(
-        user=kyc.user,
-        type='kyc',
-        title='KYC Under Review',
-        body='Your KYC verification requires manual review and will be processed shortly.'
+    send_email_task.delay(
+        to_email=kyc.user.email,
+        to_name=kyc.user.full_name,
+        subject="SwiftTrade \u2013 KYC Submitted",
+        template_name="emails/kyc_submitted.html",
+        context={
+            "full_name": kyc.user.full_name,
+            "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        },
     )
 
-    from notifications.telegram import TelegramNotifier
-    TelegramNotifier.kyc_submitted(
-        full_name=kyc.user.full_name,
-        email=kyc.user.email,
-        document_type=kyc.document_type,
-        kyc_id=kyc.id,
+    create_notification_task.delay(
+        user_id=kyc.user.id,
+        notification_type='kyc',
+        title='KYC Under Review',
+        body='Your KYC verification requires manual review and will be processed shortly.',
     )
-    
+
+    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    telegram_msg = (
+        "\U0001f4cb <b>KYC SUBMITTED \u2014 ACTION REQUIRED</b>\n"
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+        f"\U0001f464 <b>User:</b> {kyc.user.full_name} ({kyc.user.email})\n"
+        f"\U0001fa96 <b>Document:</b> {kyc.document_type.replace('_', ' ').title()}\n"
+        f"\U0001f194 <b>KYC ID:</b> <code>{kyc.id}</code>\n"
+        f"\u23f0 {ts}"
+    )
+    send_telegram_task.delay(telegram_msg)
+
     return KYCResponseSchema(
         status=kyc.status,
         document_type=kyc.document_type,
@@ -139,23 +147,34 @@ def approve_kyc(request, kyc_id: int):
         kyc.status = KYCStatus.VERIFIED
         kyc.save()
 
-        # Send Email
-        send_kyc_approved_email(user=kyc.user)
+        # Background notifications
+        send_email_task.delay(
+            to_email=kyc.user.email,
+            to_name=kyc.user.full_name,
+            subject="SwiftTrade \u2013 KYC Approved",
+            template_name="emails/kyc_approved.html",
+            context={
+                "full_name": kyc.user.full_name,
+                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+            },
+        )
 
-        from notifications.models import Notification
-        Notification.objects.create(
-            user=kyc.user,
-            type='kyc',
+        create_notification_task.delay(
+            user_id=kyc.user.id,
+            notification_type='kyc',
             title='KYC Approved',
-            body='Your KYC verification has been approved by our team.'
+            body='Your KYC verification has been approved by our team.',
         )
 
-        from notifications.telegram import TelegramNotifier
-        TelegramNotifier.kyc_approved(
-            full_name=kyc.user.full_name,
-            email=kyc.user.email,
-            kyc_id=kyc.id,
+        ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        telegram_msg = (
+            "\u2705 <b>KYC APPROVED</b>\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f464 <b>User:</b> {kyc.user.full_name} ({kyc.user.email})\n"
+            f"\U0001f194 <b>KYC ID:</b> <code>{kyc.id}</code>\n"
+            f"\u23f0 {ts}"
         )
+        send_telegram_task.delay(telegram_msg)
 
         return KYCResponseSchema(
             status=kyc.status,
@@ -183,24 +202,36 @@ def reject_kyc(request, kyc_id: int, payload: KYCRejectSchema):
         kyc.rejection_reason = payload.reason
         kyc.save()
 
-        # Send Email
-        send_kyc_rejected_email(user=kyc.user, reason=payload.reason)
+        # Background notifications
+        send_email_task.delay(
+            to_email=kyc.user.email,
+            to_name=kyc.user.full_name,
+            subject="SwiftTrade \u2013 KYC Rejected",
+            template_name="emails/kyc_rejected.html",
+            context={
+                "full_name": kyc.user.full_name,
+                "reason": payload.reason,
+                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+            },
+        )
 
-        from notifications.models import Notification
-        Notification.objects.create(
-            user=kyc.user,
-            type='kyc',
+        create_notification_task.delay(
+            user_id=kyc.user.id,
+            notification_type='kyc',
             title='KYC Rejected',
-            body=f'Your KYC verification was rejected. Reason: {payload.reason}'
+            body=f'Your KYC verification was rejected. Reason: {payload.reason}',
         )
 
-        from notifications.telegram import TelegramNotifier
-        TelegramNotifier.kyc_rejected(
-            full_name=kyc.user.full_name,
-            email=kyc.user.email,
-            kyc_id=kyc.id,
-            reason=payload.reason,
+        ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        telegram_msg = (
+            "\u274c <b>KYC REJECTED</b>\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f464 <b>User:</b> {kyc.user.full_name} ({kyc.user.email})\n"
+            f"\U0001f194 <b>KYC ID:</b> <code>{kyc.id}</code>\n"
+            f"\U0001f4dd <b>Reason:</b> {payload.reason}\n"
+            f"\u23f0 {ts}"
         )
+        send_telegram_task.delay(telegram_msg)
 
         return KYCResponseSchema(
             status=kyc.status,

@@ -226,3 +226,47 @@ PREMBLY_BASE_URL = os.environ.get('PREMBLY_BASE_URL', 'https://api.prembly.com')
 PREMBLY_LIVENESS_THRESHOLD = float(os.environ.get('PREMBLY_LIVENESS_THRESHOLD', '70'))
 PREMBLY_FACE_MATCH_THRESHOLD = float(os.environ.get('PREMBLY_FACE_MATCH_THRESHOLD', '70'))
 PREMBLY_MAX_SELFIE_RETRIES = int(os.environ.get('PREMBLY_MAX_SELFIE_RETRIES', '3'))
+
+# ---------------------------------------------------------------------------
+# Redis / Celery
+# ---------------------------------------------------------------------------
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+
+# Broker + result backend
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+# Acknowledge task only after it completes — safe on worker crash/restart
+CELERY_TASK_ACKS_LATE = True
+# Don't pre-fetch more tasks than the worker can handle at once
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Beat schedule — proactively refresh crypto rates every 60 seconds
+CELERY_BEAT_SCHEDULE = {
+    'refresh-crypto-rates-every-60s': {
+        'task': 'rates.tasks.refresh_rates',
+        'schedule': 60.0,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Django Cache → Redis (L1), DB stays as L2 for persistent rate storage
+# ---------------------------------------------------------------------------
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'IGNORE_EXCEPTIONS': True,  # fall back gracefully if Redis is down
+        },
+        'TIMEOUT': 120,
+    }
+}
+

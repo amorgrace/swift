@@ -5,12 +5,13 @@ from django.contrib.auth.hashers import check_password
 from ninja_jwt.tokens import RefreshToken
 from typing import Optional, Dict, Any
 from anymail.exceptions import AnymailError
+from datetime import datetime
 
 from .email import (
     send_password_reset_email,
-    send_password_changed_email,
     send_verification_email,
 )
+from notifications.tasks import send_email_task, send_telegram_task
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,16 @@ class AuthenticationService:
                 raise ValueError(
                     "Registration failed during wallet setup. Please try again."
                 )
+
+        # Telegram admin alert (fire-and-forget background task)
+        telegram_msg = (
+            "\U0001f7e2 <b>NEW USER REGISTERED</b>\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f464 <b>Name:</b> {full_name}\n"
+            f"\U0001f4e7 <b>Email:</b> {email}\n"
+            f"\u23f0 {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+        )
+        send_telegram_task.delay(telegram_msg)
 
         return user
 
@@ -257,7 +268,17 @@ class AuthenticationService:
         user.save()
         reset_token.delete()
 
-        send_password_changed_email(user)
+        send_email_task.delay(
+            to_email=user.email,
+            to_name=user.full_name,
+            subject="SwiftTrade \u2013 Password Changed",
+            template_name="emails/password_changed.html",
+            context={
+                "full_name": user.full_name,
+                "email": user.email,
+                "timestamp": datetime.utcnow().strftime("%B %d, %Y at %I:%M %p UTC"),
+            },
+        )
 
         return True
 
@@ -270,7 +291,17 @@ class AuthenticationService:
         user.set_password(new_password)
         user.save()
 
-        send_password_changed_email(user)
+        send_email_task.delay(
+            to_email=user.email,
+            to_name=user.full_name,
+            subject="SwiftTrade \u2013 Password Changed",
+            template_name="emails/password_changed.html",
+            context={
+                "full_name": user.full_name,
+                "email": user.email,
+                "timestamp": datetime.utcnow().strftime("%B %d, %Y at %I:%M %p UTC"),
+            },
+        )
 
         return True
 

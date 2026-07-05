@@ -1,6 +1,7 @@
 import logging
 from decimal import Decimal
 import uuid
+from datetime import datetime
 
 from django.conf import settings
 from django.db import transaction
@@ -9,13 +10,7 @@ from rates.services import RateService
 from wallets.models import NGNWallet, BankAccount
 from wallets.services import PaystackService
 from kyc.models import KYCVerification, KYCStatus
-from authenticator.email import (
-    send_deposit_received_email,
-    send_withdrawal_completed_email,
-    send_withdrawal_failed_email,
-    send_withdrawal_initiated_email,
-    send_admin_withdrawal_pending_email
-)
+from notifications.tasks import send_email_task, send_telegram_task, create_notification_task
 from .models import (
     Deposit,
     Withdrawal,
@@ -128,32 +123,44 @@ class DepositService:
                 related_deposit=deposit,
             )
 
-        # Notifications (outside atomic block)
-        send_deposit_received_email(
-            user=wallet.user,
-            asset=asset,
-            crypto_amount=str(crypto_amount),
-            ngn_amount=f"{ngn_amount:,.2f}"
-        )
-        
-        from notifications.models import Notification
-        Notification.objects.create(
-            user=wallet.user,
-            type='trade',
-            title='Deposit Received & Converted',
-            body=f'Your deposit of {crypto_amount} {asset.upper()} was successfully converted to ₦{ngn_amount:,.2f}.'
+        # --- Background notifications (non-blocking) ---
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+        # Email
+        send_email_task.delay(
+            to_email=wallet.user.email,
+            to_name=wallet.user.full_name,
+            subject=f"SwiftTrade \u2013 Deposit Received ({asset.upper()})",
+            template_name="emails/deposit_received.html",
+            context={
+                "full_name": wallet.user.full_name,
+                "asset": asset.upper(),
+                "crypto_amount": str(crypto_amount),
+                "ngn_amount": f"{ngn_amount:,.2f}",
+                "timestamp": timestamp,
+            },
         )
 
-        from notifications.telegram import TelegramNotifier
-        TelegramNotifier.deposit_received(
-            full_name=wallet.user.full_name,
-            email=wallet.user.email,
-            asset=asset,
-            crypto_amount=str(crypto_amount),
-            ngn_amount=f"{ngn_amount:,.2f}",
-            rate=f"{user_rate:,.2f}",
-            reference=tx_hash,
+        # In-app notification
+        create_notification_task.delay(
+            user_id=wallet.user.id,
+            notification_type='trade',
+            title='Deposit Received & Converted',
+            body=f'Your deposit of {crypto_amount} {asset.upper()} was successfully converted to \u20a6{ngn_amount:,.2f}.',
         )
+
+        # Telegram admin alert
+        telegram_msg = (
+            "\U0001f4e5 <b>NEW CRYPTO DEPOSIT</b>\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f464 <b>User:</b> {wallet.user.full_name} ({wallet.user.email})\n"
+            f"\U0001f4b0 <b>Crypto:</b> {crypto_amount} {asset.upper()}\n"
+            f"\U0001f4b5 <b>NGN Credited:</b> \u20a6{ngn_amount:,.2f}\n"
+            f"\U0001f4ca <b>Rate Used:</b> \u20a6{user_rate:,.2f}/{asset.upper()}\n"
+            f"\U0001f517 <b>Swift Ref:</b> <code>{tx_hash}</code>\n"
+            f"\u23f0 {timestamp}"
+        )
+        send_telegram_task.delay(telegram_msg)
 
         logger.info(f"Tatum deposit {tx_hash} processed for wallet {wallet.id}")
         return True
@@ -233,43 +240,61 @@ class WithdrawalService:
                 related_withdrawal=withdrawal,
             )
 
-        # Notifications
-        send_withdrawal_initiated_email(
-            user=user,
-            amount=f"{amount:,.2f}",
-            bank_name=bank_account.bank_name,
-            account_number=bank_account.account_number
+        # --- Background notifications (non-blocking) ---
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+        # Email user
+        send_email_task.delay(
+            to_email=user.email,
+            to_name=user.full_name,
+            subject="SwiftTrade \u2013 Withdrawal Request Received",
+            template_name="emails/withdrawal_initiated.html",
+            context={
+                "full_name": user.full_name,
+                "amount": f"{amount:,.2f}",
+                "bank_name": bank_account.bank_name,
+                "account_number": bank_account.account_number,
+                "timestamp": timestamp,
+            },
         )
 
-        from authenticator.models import User
-        admins = User.objects.filter(is_staff=True)
-        for admin in admins:
-            send_admin_withdrawal_pending_email(
-                admin_email=admin.email,
-                admin_name=admin.full_name,
-                user_name=user.full_name,
-                amount=f"{amount:,.2f}",
-                bank_name=bank_account.bank_name,
-                account_number=bank_account.account_number
+        # Email each admin (each as a separate task — parallelised by workers)
+        from authenticator.models import User as UserModel
+        for admin in UserModel.objects.filter(is_staff=True).values('email', 'full_name'):
+            send_email_task.delay(
+                to_email=admin['email'],
+                to_name=admin['full_name'],
+                subject="SwiftTrade Admin \u2013 New Withdrawal Request",
+                template_name="emails/admin_withdrawal_pending.html",
+                context={
+                    "admin_name": admin['full_name'],
+                    "user_name": user.full_name,
+                    "amount": f"{amount:,.2f}",
+                    "bank_name": bank_account.bank_name,
+                    "account_number": bank_account.account_number,
+                    "timestamp": timestamp,
+                },
             )
 
-        from notifications.models import Notification
-        Notification.objects.create(
-            user=user,
-            type='withdrawal',
+        # In-app notification
+        create_notification_task.delay(
+            user_id=user.id,
+            notification_type='withdrawal',
             title='Withdrawal Requested',
-            body=f'Your withdrawal of ₦{amount:,.2f} to {bank_account.bank_name} has been requested and is pending review.'
+            body=f'Your withdrawal of \u20a6{amount:,.2f} to {bank_account.bank_name} has been requested and is pending review.',
         )
 
-        from notifications.telegram import TelegramNotifier
-        TelegramNotifier.withdrawal_requested(
-            full_name=user.full_name,
-            email=user.email,
-            amount=f"{amount:,.2f}",
-            bank_name=bank_account.bank_name,
-            account_number=bank_account.account_number,
-            reference=withdrawal_ref,
+        # Telegram admin alert
+        telegram_msg = (
+            "\U0001f4b8 <b>WITHDRAWAL REQUESTED</b>\n"
+            "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"\U0001f464 <b>User:</b> {user.full_name} ({user.email})\n"
+            f"\U0001f4b5 <b>Amount:</b> \u20a6{amount:,.2f}\n"
+            f"\U0001f3e6 <b>Bank:</b> {bank_account.bank_name} \u2014 <code>{bank_account.account_number}</code>\n"
+            f"\U0001f517 <b>Ref:</b> <code>{withdrawal_ref}</code>\n"
+            f"\u23f0 {timestamp}"
         )
+        send_telegram_task.delay(telegram_msg)
 
         return {
             "message": "Withdrawal request received and pending review",
