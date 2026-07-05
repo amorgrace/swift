@@ -2,8 +2,10 @@ from ninja import Router, Query
 from ninja.errors import HttpError
 from ninja.pagination import paginate, PageNumberPagination
 from typing import List, Optional
+from datetime import datetime
 
 from django.db.models import Sum
+from django_ratelimit.decorators import ratelimit
 
 from pydantic import BaseModel
 
@@ -19,6 +21,7 @@ from .schemas import (
 from .services import WithdrawalService
 from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus, TransactionType
 from wallets.models import NGNWallet
+from notifications.tasks import send_email_task, send_telegram_task, create_notification_task
 
 router = Router(tags=['Transactions'])
 
@@ -28,6 +31,7 @@ class TransactionFilterSchema(BaseModel):
 
 
 @router.post('/withdraw', response={200: dict})
+@ratelimit(key='user', rate='5/m', block=True)
 def request_withdrawal(request, payload: WithdrawalRequestSchema):
     """Request an NGN withdrawal to a linked bank account."""
     try:
@@ -294,31 +298,39 @@ def approve_withdrawal(request, withdrawal_id: int):
         txn_log.status = WithdrawalStatus.SUCCESS
         txn_log.save()
         
-    from authenticator.email import send_withdrawal_completed_email
-    send_withdrawal_completed_email(
-        user=withdrawal.wallet.user,
-        amount=f"{withdrawal.amount:,.2f}",
-        bank_name=withdrawal.bank_account.bank_name,
-        account_number=withdrawal.bank_account.account_number
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+    send_email_task.delay(
+        to_email=withdrawal.wallet.user.email,
+        to_name=withdrawal.wallet.user.full_name,
+        subject="SwiftTrade \u2013 Withdrawal Completed",
+        template_name="emails/withdrawal_completed.html",
+        context={
+            "full_name": withdrawal.wallet.user.full_name,
+            "amount": f"{withdrawal.amount:,.2f}",
+            "bank_name": withdrawal.bank_account.bank_name,
+            "account_number": withdrawal.bank_account.account_number,
+            "timestamp": timestamp,
+        },
     )
     
-    from notifications.models import Notification
-    Notification.objects.create(
-        user=withdrawal.wallet.user,
-        type='withdrawal',
+    create_notification_task.delay(
+        user_id=withdrawal.wallet.user.id,
+        notification_type='withdrawal',
         title='Withdrawal Approved',
         body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} to {withdrawal.bank_account.bank_name} has been approved and processed.'
     )
     
-    from notifications.telegram import TelegramNotifier
-    TelegramNotifier.withdrawal_success(
-        full_name=withdrawal.wallet.user.full_name,
-        email=withdrawal.wallet.user.email,
-        amount=f"{withdrawal.amount:,.2f}",
-        bank_name=withdrawal.bank_account.bank_name,
-        account_number=withdrawal.bank_account.account_number,
-        reference=withdrawal.paystack_reference,
+    telegram_msg = (
+        "\u2705 <b>WITHDRAWAL APPROVED</b>\n"
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+        f"\U0001f464 <b>User:</b> {withdrawal.wallet.user.full_name} ({withdrawal.wallet.user.email})\n"
+        f"\U0001f4b5 <b>Amount:</b> \u20a6{withdrawal.amount:,.2f}\n"
+        f"\U0001f3e6 <b>Bank:</b> {withdrawal.bank_account.bank_name} \u2014 <code>{withdrawal.bank_account.account_number}</code>\n"
+        f"\U0001f517 <b>Ref:</b> <code>{withdrawal.paystack_reference}</code>\n"
+        f"\u23f0 {timestamp}"
     )
+    send_telegram_task.delay(telegram_msg)
     
     return {"message": "Withdrawal approved successfully."}
 
@@ -344,29 +356,38 @@ def reject_withdrawal(request, withdrawal_id: int):
         # Credit the user back
         withdrawal.wallet.credit(withdrawal.amount)
         
-    from authenticator.email import send_withdrawal_failed_email
-    send_withdrawal_failed_email(
-        user=withdrawal.wallet.user,
-        amount=f"{withdrawal.amount:,.2f}",
-        bank_name=withdrawal.bank_account.bank_name
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+    send_email_task.delay(
+        to_email=withdrawal.wallet.user.email,
+        to_name=withdrawal.wallet.user.full_name,
+        subject="SwiftTrade \u2013 Withdrawal Rejected",
+        template_name="emails/withdrawal_failed.html",
+        context={
+            "full_name": withdrawal.wallet.user.full_name,
+            "amount": f"{withdrawal.amount:,.2f}",
+            "bank_name": withdrawal.bank_account.bank_name,
+            "timestamp": timestamp,
+        },
     )
     
-    from notifications.models import Notification
-    Notification.objects.create(
-        user=withdrawal.wallet.user,
-        type='withdrawal',
+    create_notification_task.delay(
+        user_id=withdrawal.wallet.user.id,
+        notification_type='withdrawal',
         title='Withdrawal Rejected',
         body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} has been rejected. Funds have been returned to your wallet.'
     )
     
-    from notifications.telegram import TelegramNotifier
-    TelegramNotifier.withdrawal_failed(
-        full_name=withdrawal.wallet.user.full_name,
-        email=withdrawal.wallet.user.email,
-        amount=f"{withdrawal.amount:,.2f}",
-        bank_name=withdrawal.bank_account.bank_name,
-        reference=withdrawal.paystack_reference,
-        reason="Rejected by Admin"
+    telegram_msg = (
+        "\u274c <b>WITHDRAWAL REJECTED</b>\n"
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+        f"\U0001f464 <b>User:</b> {withdrawal.wallet.user.full_name} ({withdrawal.wallet.user.email})\n"
+        f"\U0001f4b5 <b>Amount:</b> \u20a6{withdrawal.amount:,.2f}\n"
+        f"\U0001f3e6 <b>Bank:</b> {withdrawal.bank_account.bank_name}\n"
+        f"\U0001f517 <b>Ref:</b> <code>{withdrawal.paystack_reference}</code>\n"
+        f"\u2757 <b>Reason:</b> Rejected by Admin\n"
+        f"\u23f0 {timestamp}"
     )
+    send_telegram_task.delay(telegram_msg)
     
     return {"message": "Withdrawal rejected and funds refunded."}

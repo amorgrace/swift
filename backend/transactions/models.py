@@ -96,6 +96,9 @@ class Deposit(models.Model):
         verbose_name = 'Deposit'
         verbose_name_plural = 'Deposits'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['wallet', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Deposit {self.crypto_amount} {self.asset.upper()} -> ₦{self.ngn_amount}"
@@ -150,6 +153,9 @@ class Withdrawal(models.Model):
         verbose_name = 'Withdrawal'
         verbose_name_plural = 'Withdrawals'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['wallet', '-created_at']),
+        ]
 
     def __str__(self):
         return f"Withdrawal ₦{self.amount} -> {self.bank_account.bank_name}"
@@ -196,6 +202,9 @@ class Transaction(models.Model):
         verbose_name = 'Transaction'
         verbose_name_plural = 'Transactions'
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['wallet', '-created_at']),
+        ]
 
     def __str__(self):
         return f"{self.get_type_display()} ₦{self.amount} - {self.status}"
