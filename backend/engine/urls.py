@@ -13,6 +13,6 @@ def home_view(request):
 urlpatterns = [
     path('', home_view, name='home'),
     path('admin/', admin.site.urls),
-    path('api/docs/', RedirectView.as_view(url='/api/docs', permanent=True)),
+    # path('api/docs/', RedirectView.as_view(url='/api/docs', permanent=True)),
     path('api/', api.urls),
 ]
