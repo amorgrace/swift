@@ -82,11 +82,21 @@ class SystemSettings(models.Model):
         
     @classmethod
     def get_settings(cls):
-        obj, created = cls.objects.get_or_create(id=1)
-        return obj
+        from django.core.cache import cache
+        settings_obj = cache.get('system_settings')
+        if not settings_obj:
+            settings_obj, created = cls.objects.get_or_create(id=1)
+            cache.set('system_settings', settings_obj, timeout=3600)  # Cache for 1 hour
+        return settings_obj
+
+    def save(self, *args, **kwargs):
+        from django.core.cache import cache
+        super().save(*args, **kwargs)
+        cache.delete('system_settings')  # Invalidate cache on update
 
     def __str__(self):
         return f"System Settings (Margin: {self.conversion_margin_percentage}%)"
+
 
 class GiftCard(models.Model):
     brand = models.CharField(max_length=100)

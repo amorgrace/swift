@@ -49,6 +49,8 @@ class RateService:
             logger.error(f'CoinGecko API error: {e}')
             raise ValueError(f'Failed to fetch rates from CoinGecko: {e}')
 
+        from django.core.cache import cache
+        
         rates = {}
         for coingecko_id, prices in data.items():
             asset = COINGECKO_ID_TO_ASSET.get(coingecko_id)
@@ -57,11 +59,17 @@ class RateService:
                 rate_usd = Decimal(str(prices['usd']))
                 rates[asset] = {'ngn': rate_ngn, 'usd': rate_usd}
 
-                # Update cache
+                # Update DB cache
                 CachedRate.objects.update_or_create(
                     asset=asset,
                     defaults={'rate_ngn': rate_ngn, 'rate_usd': rate_usd},
                 )
+                
+                # Update Redis L1 cache
+                cache.set(f'market_rates_{asset}', rates[asset], timeout=RATE_CACHE_TTL)
+                
+        # Invalidate the all_rates cache so it gets rebuilt
+        cache.delete('all_rates_computed')
 
         logger.info(f'Fetched and cached rates for {len(rates)} assets')
         return rates
@@ -75,11 +83,20 @@ class RateService:
         if asset not in ASSET_TO_COINGECKO_ID:
             raise ValueError(f'Unsupported asset: {asset}')
 
+        from django.core.cache import cache
+        cache_key = f'market_rates_{asset}'
+        cached_rates = cache.get(cache_key)
+        if cached_rates:
+            return cached_rates
+
         try:
             cached = CachedRate.objects.get(asset=asset)
             age = (timezone.now() - cached.updated_at).total_seconds()
             if age < RATE_CACHE_TTL and cached.rate_usd is not None:
-                return {'ngn': cached.rate_ngn, 'usd': cached.rate_usd}
+                rates = {'ngn': cached.rate_ngn, 'usd': cached.rate_usd}
+                # Backfill Redis
+                cache.set(cache_key, rates, timeout=int(RATE_CACHE_TTL - age))
+                return rates
         except CachedRate.DoesNotExist:
             pass
 
@@ -165,10 +182,15 @@ class RateService:
     @staticmethod
     def get_all_rates() -> list:
         """Get rates for all supported assets, including implied NGN/USD rates."""
+        from django.core.cache import cache
+        cached_all_rates = cache.get('all_rates_computed')
+        if cached_all_rates:
+            return cached_all_rates
+
         results = []
         margin = RateService.get_margin_percentage()
 
-        # Check if we have fresh rates in cache
+        # Check if we have fresh rates in DB cache
         needs_fetch = True
         oldest_rate = CachedRate.objects.all().order_by('updated_at').first()
         if oldest_rate:
@@ -223,5 +245,8 @@ class RateService:
                     'margin_percentage': margin,
                     'updated_at': None,
                 })
+
+        from django.core.cache import cache
+        cache.set('all_rates_computed', results, timeout=RATE_CACHE_TTL)
 
         return results
