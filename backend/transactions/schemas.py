@@ -63,7 +63,7 @@ class DashboardStatsSchema(BaseModel):
 class AdminWithdrawalSchema(BaseModel):
     id: int
     user_email: str
-    user_id: int
+    user_id: str
     asset: str
     amount: Decimal
     status: str
