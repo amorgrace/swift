@@ -38,6 +38,7 @@ class SweepHistoryItem(Schema):
     destination_address: str
     status: str
     tx_hash: str
+    admin_email: str
     created_at: str
 
 
@@ -194,6 +195,7 @@ def get_sweep_history(request):
             destination_address=s.destination_address,
             status=s.status,
             tx_hash=s.tx_hash,
+            admin_email=s.requested_by.email if s.requested_by else "System",
             created_at=s.created_at.isoformat(),
         )
         for s in sweeps
