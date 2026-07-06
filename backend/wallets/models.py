@@ -10,18 +10,15 @@ from rates.models import AssetChoices
 class NetworkChoices(models.TextChoices):
     BITCOIN = 'bitcoin', 'Bitcoin'
     ERC20 = 'erc20', 'ERC-20'
-    TRC20 = 'trc20', 'TRC-20'
     BEP20 = 'bep20', 'BEP-20'
-    SOLANA = 'solana', 'Solana'
 
 
 # Which networks are valid for each asset
 ASSET_NETWORKS = {
     'btc': [NetworkChoices.BITCOIN],
     'eth': [NetworkChoices.ERC20],
-    'usdt': [NetworkChoices.TRC20, NetworkChoices.ERC20, NetworkChoices.BEP20, NetworkChoices.SOLANA],
+    'usdt': [NetworkChoices.ERC20, NetworkChoices.BEP20],
     'usdc': [NetworkChoices.ERC20],
-    'sol': [NetworkChoices.SOLANA],
     'bnb': [NetworkChoices.BEP20],
 }
 

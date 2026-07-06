@@ -6,7 +6,6 @@ class AssetChoices(models.TextChoices):
     ETH = 'eth', 'Ethereum'
     USDT = 'usdt', 'Tether'
     USDC = 'usdc', 'USD Coin'
-    SOL = 'sol', 'Solana'
     BNB = 'bnb', 'Binance Coin'
 
 
@@ -16,7 +15,6 @@ ASSET_TO_COINGECKO_ID = {
     'eth': 'ethereum',
     'usdt': 'tether',
     'usdc': 'usd-coin',
-    'sol': 'solana',
     'bnb': 'binancecoin',
 }
 
