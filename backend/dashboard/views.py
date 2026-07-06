@@ -53,6 +53,7 @@ def get_admin_dashboard_stats(request):
     from django.contrib.auth import get_user_model
     from kyc.models import KYCVerification, KYCStatus
     from decimal import Decimal
+    from wallets.models import DepositAddress, NetworkChoices
     
     User = get_user_model()
     
@@ -67,10 +68,13 @@ def get_admin_dashboard_stats(request):
     withdrawals = Withdrawal.objects.filter(status=WithdrawalStatus.SUCCESS)
     total_system_withdrawals = withdrawals.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
     
+    btc_address_count = DepositAddress.objects.filter(network=NetworkChoices.BITCOIN).count()
+    
     return AdminDashboardStatsSchema(
         total_users=total_users,
         total_kyc_pending=total_kyc_pending,
         total_system_ngn_balance=total_ngn_balance,
         total_system_deposits=total_system_deposits,
-        total_system_withdrawals=total_system_withdrawals
+        total_system_withdrawals=total_system_withdrawals,
+        btc_address_count=btc_address_count
     )

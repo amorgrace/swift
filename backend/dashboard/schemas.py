@@ -12,3 +12,4 @@ class AdminDashboardStatsSchema(BaseModel):
     total_system_ngn_balance: Decimal
     total_system_deposits: Decimal
     total_system_withdrawals: Decimal
+    btc_address_count: int
