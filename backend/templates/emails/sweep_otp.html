@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" dir="ltr"
+      style="background-color:#050505 !important;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="dark only">
+<meta name="supported-color-schemes" content="dark only">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings>
+<o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings></xml></noscript>
+<style>table { border-collapse: collapse; } td { font-family: Arial, sans-serif; }</style>
+<![endif]-->
+<style type="text/css">
+  :root { color-scheme: dark only !important; }
+  /* Gmail */
+  u + .body { background-color: #050505 !important; }
+  /* Outlook */
+  [data-ogsc], [data-ogsb] { background-color: #050505 !important; color: #ffffff !important; }
+  /* Apple Mail */
+  @media (prefers-color-scheme: dark) {
+    body, .body, .email-bg { background-color: #050505 !important; color: #fff !important; }
+    td, th { background-color: inherit !important; }
+  }
+  /* Override any client that tries to lighten */
+  body, .body { background-color: #050505 !important; }
+  a { color: #0ECB81; }
+</style>
+</head>
+<body class="body" style="margin:0;padding:0;width:100%;background-color:#050505 !important;color:#ffffff;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;-ms-text-size-adjust:100%;">
+
+<!-- Outermost wrapper table — forces Gmail dark bg -->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+       bgcolor="#050505" style="background-color:#050505 !important;width:100%;margin:0;padding:0;">
+<tr>
+<td align="center" valign="top"
+    bgcolor="#050505" style="background-color:#050505 !important;padding:0;">
+
+  <!-- Padding table -->
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         bgcolor="#050505" style="background-color:#050505 !important;">
+  <tr>
+  <td bgcolor="#050505" style="background-color:#050505 !important;padding:40px 20px;">
+
+    <!-- Content table — 560px centered -->
+    <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0"
+           align="center" bgcolor="#050505"
+           style="background-color:#050505;max-width:560px;width:100%;margin:0 auto;">
+
+
+    <!-- Header -->
+    <tr>
+    <td align="center" bgcolor="#050505" style="background-color:#050505;padding:32px 0 24px;">
+      <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:28px;letter-spacing:2px;color:#ffffff;">SWIFT</span><span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:28px;letter-spacing:2px;color:#0ECB81;">TRADE</span>
+      <br>
+      <span style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#555555;">Trade Crypto &middot; Receive Naira</span>
+    </td>
+    </tr>
+    <tr>
+    <td bgcolor="#050505" style="background-color:#050505;padding:0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+             style="background-color:#101010;border:1px solid #1a1a1a;border-radius:14px;overflow:hidden;">
+      <tr><td style="height:4px;background:linear-gradient(90deg,#EF4444,#DC2626);font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr>
+      <td bgcolor="#101010" style="background-color:#101010;padding:32px 32px 28px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 20px;">
+      <tr><td style="width:52px;height:52px;border-radius:14px;background-color:rgba(239,68,68,0.12);text-align:center;line-height:52px;font-size:24px;">🛡️</td></tr>
+      </table>
+        <p style="margin:0 0 8px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#EF4444;">Security Authorization</span></p>
+        <h1 style="font-size:22px;font-weight:600;color:#ffffff;margin:0 0 10px;line-height:1.3;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">Crypto Sweep Request</h1>
+        <p style="font-size:14px;color:#888888;line-height:1.65;margin:0 0 20px;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">Hi <strong style="color:#ffffff;">{{ full_name }}</strong>, we received a request to sweep <strong style="color:#ffffff;">{{ amount }} {{ asset }}</strong> on the <strong style="color:#ffffff;">{{ network }}</strong> network to your master wallet. Use the security code below to authorize this transaction. It is valid for 10 minutes.</p>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr><td align="center" bgcolor="#101010" style="background-color:#101010;padding:28px 0 8px;">
+          <span style="font-size:12px;color:#555555;letter-spacing:1px;text-transform:uppercase;">One-Time Security Code</span>
+          <br><br>
+          <span style="font-size:44px;font-weight:700;color:#ffffff;letter-spacing:12px;font-family:'DM Mono', 'Courier New', monospace;">{{ token }}</span>
+          <br><br>
+          <span style="font-size:13px;color:#555555;font-family:'DM Mono', 'Courier New', monospace;">Valid for <span style="color:#EF4444;">10 minutes</span></span>
+        </td></tr>
+        </table>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-top:1px solid #1a1a1a;height:1px;font-size:0;line-height:0;padding:12px 0 12px;" bgcolor="#101010">&nbsp;</td></tr></table>
+        <p style="font-size:12px;color:#555555;line-height:1.5;margin:0;">If you did not initiate this sweep, please secure your account credentials immediately.</p>
+      </td>
+      </tr>
+      </table>
+    </td>
+    </tr>
+    <!-- Footer -->
+    <tr>
+    <td bgcolor="#050505" style="background-color:#050505;padding:28px 0 8px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr><td style="border-top:1px solid #111111;padding:0;height:1px;font-size:0;line-height:0;" bgcolor="#050505">&nbsp;</td></tr>
+      <tr>
+      <td align="center" bgcolor="#050505" style="background-color:#050505;padding:16px 0 0;">
+        <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:2px;color:#2e2e2e;">SWIFT</span><span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:2px;color:#1a5c3a;">TRADE</span>
+        <br>
+        <span style="font-size:11px;color:#2a2a2a;">&copy; {{ year }} SwiftTrade. All rights reserved.</span>
+      </td>
+      </tr>
+      </table>
+    </td>
+    </tr>
+
+    </table>
+    <!-- /Content table -->
+
+  </td>
+  </tr>
+  </table>
+  <!-- /Padding table -->
+
+</td>
+</tr>
+</table>
+<!-- /Outermost wrapper -->
+
+</body>
+</html>

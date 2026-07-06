@@ -12,14 +12,15 @@ router = Router(tags=["Sweep"])
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
-class SetSweepPinSchema(Schema):
-    pin: str  # 6 digits
+class RequestOtpSchema(Schema):
+    asset: str
+    network: str
 
 
 class ConfirmSweepSchema(Schema):
     asset: str
     network: str
-    pin: str  # admin sweep PIN
+    otp: str  # admin sweep OTP
 
 
 class SweepBalanceItem(Schema):
@@ -45,15 +46,14 @@ class SweepHistoryItem(Schema):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _require_admin(request):
+def _require_sweep_owner(request):
+    import os
     if not request.user.is_staff:
         raise HttpError(403, "Admin access required.")
-
-
-def _get_or_create_admin_profile(user):
-    from wallets.models import AdminProfile
-    profile, _ = AdminProfile.objects.get_or_create(user=user)
-    return profile
+    
+    owner_email = os.environ.get("SWEEP_OWNER_EMAIL", "famakinwa99@gmail.com").strip().lower()
+    if request.user.email.strip().lower() != owner_email:
+        raise HttpError(403, f"Access denied. Only the sweep owner ({owner_email}) is authorized.")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ def _get_or_create_admin_profile(user):
 @router.get("/sweep/balances", response=List[SweepBalanceItem])
 def get_sweep_balances(request):
     """List all unswept on-chain balances across all user deposit addresses."""
-    _require_admin(request)
+    _require_sweep_owner(request)
     try:
         from wallets.sweep import fetch_pending_balances
         results = fetch_pending_balances()
@@ -80,42 +80,73 @@ def get_sweep_balances(request):
         raise HttpError(500, str(e))
 
 
-@router.post("/sweep/set-pin", response={200: dict})
-def set_sweep_pin(request, payload: SetSweepPinSchema):
-    """Set or update the admin sweep PIN (6 digits)."""
-    _require_admin(request)
-    try:
-        profile = _get_or_create_admin_profile(request.user)
-        profile.set_sweep_pin(payload.pin)
-        return {"message": "Sweep PIN set successfully."}
-    except ValueError as e:
-        raise HttpError(400, str(e))
-    except Exception as e:
-        raise HttpError(500, str(e))
+@router.post("/sweep/request-otp", response={200: dict})
+def request_sweep_otp(request, payload: RequestOtpSchema):
+    """Generate a 6-digit OTP and send it via email to the sweep owner."""
+    _require_sweep_owner(request)
+    import random
+    import os
+    from django.core.cache import cache
+    from notifications.tasks import send_email_task
+    from wallets.sweep import fetch_pending_balances
 
+    # 1. Fetch live balance for display in email
+    all_balances = fetch_pending_balances()
+    target = next(
+        (b for b in all_balances
+         if b["asset"].lower() == payload.asset.lower()
+         and b["network"].lower() == payload.network.lower()),
+        None,
+    )
+    total_bal = target["total_balance"] if target else 0.0
 
-@router.get("/sweep/pin-status", response={200: dict})
-def get_sweep_pin_status(request):
-    """Check whether the current admin has set their sweep PIN."""
-    _require_admin(request)
-    profile = _get_or_create_admin_profile(request.user)
-    return {"pin_is_set": profile.pin_is_set}
+    # 2. Generate 6-digit OTP
+    otp = f"{random.randint(100000, 999999)}"
+
+    # 3. Store OTP in cache for 10 minutes (600s)
+    cache_key = f"sweep_otp_{payload.asset.lower()}_{payload.network.lower()}"
+    cache.set(cache_key, otp, timeout=600)
+
+    # 4. Dispatch Email to Owner
+    owner_email = os.environ.get("SWEEP_OWNER_EMAIL", "famakinwa99@gmail.com").strip().lower()
+    
+    send_email_task.delay(
+        to_email=owner_email,
+        to_name="Project Owner",
+        subject=f"Sweep Authorization OTP - {payload.asset.upper()}",
+        template_name="emails/sweep_otp.html",
+        context={
+            "full_name": request.user.full_name or "Owner",
+            "amount": f"{total_bal:,.6f}" if total_bal else "0",
+            "asset": payload.asset.upper(),
+            "network": payload.network.upper(),
+            "token": otp,
+        }
+    )
+
+    return {"message": f"OTP successfully sent to {owner_email}"}
 
 
 @router.post("/sweep/execute", response={200: dict})
 def execute_sweep(request, payload: ConfirmSweepSchema):
     """
     Initiate and execute a sweep for the given asset/network.
-    Requires a valid 6-digit sweep PIN.
+    Requires a valid 6-digit sweep OTP.
     """
-    _require_admin(request)
+    _require_sweep_owner(request)
 
-    # 1. Verify PIN
-    profile = _get_or_create_admin_profile(request.user)
-    if not profile.pin_is_set:
-        raise HttpError(400, "You must set your sweep PIN before executing a sweep.")
-    if not profile.verify_sweep_pin(payload.pin):
-        raise HttpError(403, "Invalid sweep PIN.")
+    # 1. Verify OTP
+    from django.core.cache import cache
+    cache_key = f"sweep_otp_{payload.asset.lower()}_{payload.network.lower()}"
+    cached_otp = cache.get(cache_key)
+    
+    if not cached_otp:
+        raise HttpError(400, "OTP has expired or was not requested. Please request a new code.")
+    if cached_otp != payload.otp:
+        raise HttpError(403, "Invalid security code (OTP).")
+
+    # Clear OTP so it cannot be used again
+    cache.delete(cache_key)
 
     # 2. Fetch live balances for the requested asset/network
     from wallets.sweep import fetch_pending_balances, sweep_btc_addresses, sweep_evm_addresses
@@ -184,7 +215,7 @@ def execute_sweep(request, payload: ConfirmSweepSchema):
 @router.get("/sweep/history", response=List[SweepHistoryItem])
 def get_sweep_history(request):
     """Return the full audit log of past sweep requests."""
-    _require_admin(request)
+    _require_sweep_owner(request)
     from wallets.models import SweepRequest
     sweeps = SweepRequest.objects.all()[:50]
     return [
