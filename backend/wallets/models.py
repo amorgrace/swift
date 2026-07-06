@@ -159,3 +159,83 @@ class BankAccount(models.Model):
 
     def __str__(self):
         return f"{self.bank_name} — {self.account_number} ({self.account_name})"
+
+
+class AdminProfile(models.Model):
+    """
+    Stores admin-level sweep PIN (separate from user transaction PIN).
+    One per staff user.
+    """
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='admin_profile',
+        limit_choices_to={'is_staff': True},
+    )
+    sweep_pin_hash = models.CharField(max_length=128, blank=True)
+    pin_is_set = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'admin_profiles'
+        verbose_name = 'Admin Profile'
+        verbose_name_plural = 'Admin Profiles'
+
+    def set_sweep_pin(self, pin: str):
+        if len(pin) != 6 or not pin.isdigit():
+            raise ValueError('Sweep PIN must be exactly 6 digits')
+        self.sweep_pin_hash = make_password(pin)
+        self.pin_is_set = True
+        self.save(update_fields=['sweep_pin_hash', 'pin_is_set', 'updated_at'])
+
+    def verify_sweep_pin(self, pin: str) -> bool:
+        if not self.pin_is_set:
+            raise ValueError('Sweep PIN has not been set')
+        return check_password(pin, self.sweep_pin_hash)
+
+    def __str__(self):
+        return f"AdminProfile — {self.user.email}"
+
+
+class SweepStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    APPROVED = 'approved', 'Approved'
+    BROADCAST = 'broadcast', 'Broadcast'
+    CONFIRMED = 'confirmed', 'Confirmed'
+    FAILED = 'failed', 'Failed'
+
+
+class SweepRequest(models.Model):
+    """
+    Audit trail for every admin-initiated crypto sweep.
+    """
+    network = models.CharField(max_length=20, choices=NetworkChoices.choices)
+    asset = models.CharField(max_length=10, choices=[
+        ('btc', 'BTC'), ('eth', 'ETH'), ('usdt', 'USDT'),
+        ('usdc', 'USDC'), ('bnb', 'BNB'),
+    ])
+    addresses_swept = models.JSONField(default=list, help_text='List of sub-wallet addresses included')
+    total_crypto_amount = models.DecimalField(max_digits=30, decimal_places=10)
+    gas_cost_crypto = models.DecimalField(max_digits=30, decimal_places=10, default=0)
+    destination_address = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=SweepStatus.choices, default=SweepStatus.PENDING)
+    tx_hash = models.CharField(max_length=255, blank=True)
+    error_message = models.TextField(blank=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='sweep_requests',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'sweep_requests'
+        verbose_name = 'Sweep Request'
+        verbose_name_plural = 'Sweep Requests'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Sweep {self.asset.upper()} ({self.network}) — {self.status} [{self.created_at:%Y-%m-%d}]"
