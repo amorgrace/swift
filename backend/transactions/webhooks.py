@@ -5,7 +5,6 @@ from ninja.errors import HttpError
 from django.http import HttpResponse
 
 from .services import DepositService, WithdrawalService
-from wallets.services import PaystackService
 
 logger = logging.getLogger(__name__)
 
@@ -13,17 +12,15 @@ router = Router(tags=['Webhooks'])
 
 # Paystack webhook removed
 
-@router.post('/tatum-deposit/', auth=None)
-def tatum_deposit_webhook(request):
+@router.post('/alchemy-deposit/', auth=None)
+def alchemy_deposit_webhook(request):
     """
-    Tatum fires this when crypto arrives at a monitored address.
-    Idempotent: duplicate tx_hash is silently ignored.
-    Synchronous: no Celery needed. Tatum retries on non-2xx.
+    Alchemy Address Activity Webhook.
     """
-    from wallets.tatum import verify_tatum_signature
+    from wallets.alchemy import verify_alchemy_signature
     
-    if not verify_tatum_signature(request):
-        logger.warning("Invalid Tatum webhook signature")
+    if not verify_alchemy_signature(request):
+        logger.warning("Invalid Alchemy webhook signature")
         raise HttpError(401, "Invalid signature")
 
     try:
@@ -31,6 +28,20 @@ def tatum_deposit_webhook(request):
     except json.JSONDecodeError:
         raise HttpError(400, "Invalid JSON payload")
 
-    DepositService.process_tatum_deposit(payload)
+    DepositService.process_alchemy_deposit(payload)
+    return HttpResponse(status=200)
+
+
+@router.post('/blockcypher-deposit/', auth=None)
+def blockcypher_deposit_webhook(request):
+    """
+    Blockcypher Transaction Webhook.
+    """
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        raise HttpError(400, "Invalid JSON payload")
+
+    DepositService.process_blockcypher_deposit(payload)
     return HttpResponse(status=200)
 

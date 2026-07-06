@@ -30,67 +30,105 @@ class DepositService:
     # process_deposit_webhook (Quidax) removed.
 
     @staticmethod
-    def process_tatum_deposit(payload: dict) -> bool:
+    def process_alchemy_deposit(payload: dict) -> bool:
         """
-        Process a Tatum incoming transaction webhook.
-        Tatum payload shape:
-          {
-            "address": "bc1q...",
-            "txId": "abc123...",
-            "amount": "0.05",
-            "asset": "BTC",
-            "confirmations": 2,
-            "blockNumber": 123456
-          }
+        Process an Alchemy ADDRESS_ACTIVITY webhook.
         """
         from wallets.models import DepositAddress
 
-        tx_hash = payload.get("txId") or payload.get("hash")
-        address = payload.get("address")
-        amount_str = payload.get("amount", "0")
-        confirmations = int(payload.get("confirmations", 0))
-        raw_asset = (payload.get("asset") or "").lower()
+        event = payload.get("event", {})
+        activities = event.get("activity", [])
 
-        if not tx_hash or not address:
-            logger.error("Tatum webhook missing txId or address")
+        if not activities:
+            return True
+
+        for activity in activities:
+            tx_hash = activity.get("hash")
+            address = activity.get("toAddress")
+            amount_str = str(activity.get("value", "0"))
+            raw_asset = (activity.get("asset") or "").lower()
+            
+            # Alchemy addresses are checksummed usually, let's lower them just in case
+            if address:
+                address = address.lower()
+
+            if not tx_hash or not address:
+                continue
+
+            if Deposit.objects.filter(quidax_reference=tx_hash).exists():
+                logger.info(f"Deposit {tx_hash} already processed.")
+                continue
+
+            asset_map = {"eth": "eth", "usdt": "usdt", "usdc": "usdc"}
+            asset = asset_map.get(raw_asset)
+            if not asset:
+                logger.warning(f"Unknown asset in Alchemy webhook: {raw_asset}")
+                continue
+
+            # We'll just assume confirmed if it hits the webhook, though we could check blockNum
+            try:
+                # Need to lookup address case-insensitively since Alchemy might send checksummed
+                deposit_addr = DepositAddress.objects.select_related("wallet__user").get(address__iexact=address)
+            except DepositAddress.DoesNotExist:
+                logger.warning(f"No DepositAddress found for address {address}")
+                continue
+
+            wallet = deposit_addr.wallet
+            network = deposit_addr.network
+
+            try:
+                crypto_amount = Decimal(amount_str)
+            except Exception:
+                logger.error(f"Invalid amount in Alchemy payload: {amount_str}")
+                continue
+
+            DepositService._credit_wallet(wallet, network, asset, crypto_amount, tx_hash)
+
+        return True
+
+    @staticmethod
+    def process_blockcypher_deposit(payload: dict) -> bool:
+        """
+        Process a Blockcypher tx-confirmation webhook.
+        """
+        from wallets.models import DepositAddress
+
+        tx_hash = payload.get("hash")
+        confirmations = payload.get("confirmations", 0)
+        outputs = payload.get("outputs", [])
+
+        if not tx_hash:
             return False
 
-        # Idempotency — use tx_hash as the unique reference
         if Deposit.objects.filter(quidax_reference=tx_hash).exists():
             logger.info(f"Deposit {tx_hash} already processed.")
             return True
 
-        # Map Tatum asset to our AssetChoices
-        asset_map = {"btc": "btc", "eth": "eth", "usdt": "usdt", "usdc": "usdc"}
-        asset = asset_map.get(raw_asset)
-        if not asset:
-            logger.warning(f"Unknown asset in Tatum webhook: {raw_asset}")
-            return False
+        if confirmations < 2:
+            logger.info(f"Blockcypher deposit {tx_hash} needs more confirmations ({confirmations}/2)")
+            return True
 
-        # Minimum confirmations check
-        REQUIRED_CONFIRMATIONS = {"btc": 2, "eth": 12, "usdt": 12, "usdc": 12}
-        required = REQUIRED_CONFIRMATIONS.get(asset, 12)
-        if confirmations < required:
-            # Tatum will fire again when confirmations increase
-            logger.info(f"Tatum deposit {tx_hash} needs more confirmations ({confirmations}/{required})")
-            return True  # return True so Tatum gets 200 and retries
+        for output in outputs:
+            addresses = output.get("addresses", [])
+            value_satoshis = output.get("value", 0)
+            
+            for address in addresses:
+                try:
+                    deposit_addr = DepositAddress.objects.select_related("wallet__user").get(address=address, asset="btc")
+                    
+                    wallet = deposit_addr.wallet
+                    network = deposit_addr.network
+                    
+                    crypto_amount = Decimal(str(value_satoshis)) / Decimal("100000000") # Satoshi to BTC
 
-        # Look up which user owns this address
-        try:
-            deposit_addr = DepositAddress.objects.select_related("wallet__user").get(address=address)
-        except DepositAddress.DoesNotExist:
-            logger.warning(f"No DepositAddress found for address {address}")
-            return False
+                    DepositService._credit_wallet(wallet, network, "btc", crypto_amount, tx_hash)
+                except DepositAddress.DoesNotExist:
+                    pass
 
-        wallet = deposit_addr.wallet
-        network = deposit_addr.network
+        return True
 
-        try:
-            crypto_amount = Decimal(str(amount_str))
-        except Exception:
-            logger.error(f"Invalid amount in Tatum payload: {amount_str}")
-            return False
-
+    @staticmethod
+    def _credit_wallet(wallet, network, asset, crypto_amount, tx_hash):
         with transaction.atomic():
             rate_info = RateService.calculate_ngn_amount(asset, crypto_amount)
             ngn_amount = rate_info["ngn_amount"]
@@ -107,7 +145,7 @@ class DepositService:
                 margin_applied=margin,
                 ngn_usd_rate=ngn_usd_rate,
                 ngn_amount=ngn_amount,
-                quidax_reference=tx_hash,     # repurposing this field for tx_hash
+                quidax_reference=tx_hash,
                 status=DepositStatus.CONVERTED,
             )
 
@@ -123,10 +161,8 @@ class DepositService:
                 related_deposit=deposit,
             )
 
-        # --- Background notifications (non-blocking) ---
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-        # Email
         send_email_task.delay(
             to_email=wallet.user.email,
             to_name=wallet.user.full_name,
@@ -141,7 +177,6 @@ class DepositService:
             },
         )
 
-        # In-app notification
         create_notification_task.delay(
             user_id=wallet.user.id,
             notification_type='trade',
@@ -149,7 +184,6 @@ class DepositService:
             body=f'Your deposit of {crypto_amount} {asset.upper()} was successfully converted to \u20a6{ngn_amount:,.2f}.',
         )
 
-        # Telegram admin alert
         telegram_msg = (
             "\U0001f4e5 <b>NEW CRYPTO DEPOSIT</b>\n"
             "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
@@ -162,8 +196,7 @@ class DepositService:
         )
         send_telegram_task.delay(telegram_msg)
 
-        logger.info(f"Tatum deposit {tx_hash} processed for wallet {wallet.id}")
-        return True
+        logger.info(f"Deposit {tx_hash} processed for wallet {wallet.id}")
 
 
 class WithdrawalService:

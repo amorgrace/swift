@@ -180,7 +180,9 @@ class WalletService:
         """
         Get existing deposit address or derive a new one from xpub and subscribe to Tatum.
         """
-        from .tatum import get_next_derivation_index, derive_address, subscribe_to_tatum
+        from .crypto import get_next_derivation_index, derive_address
+        from .alchemy import subscribe_to_alchemy
+        from .blockcypher import subscribe_to_blockcypher
 
         wallet = NGNWallet.objects.get(user=user)
 
@@ -217,15 +219,20 @@ class WalletService:
                 derivation_index=index,
             )
 
-            webhook_url = f"{settings.BACKEND_URL}/api/webhooks/tatum-deposit/"
             try:
-                sub_id = subscribe_to_tatum(address, network, webhook_url)
-                if sub_id:
-                    deposit_address.tatum_subscription_id = sub_id
-                    deposit_address.save(update_fields=["tatum_subscription_id"])
+                if network in ["erc20", "bep20"]:
+                    success = subscribe_to_alchemy(address)
+                    if success:
+                        deposit_address.tatum_subscription_id = "alchemy_subscribed"
+                        deposit_address.save(update_fields=["tatum_subscription_id"])
+                elif network == "bitcoin":
+                    webhook_url = f"{settings.BACKEND_URL}/api/webhooks/blockcypher-deposit/"
+                    sub_id = subscribe_to_blockcypher(address, webhook_url)
+                    if sub_id:
+                        deposit_address.tatum_subscription_id = sub_id
+                        deposit_address.save(update_fields=["tatum_subscription_id"])
             except Exception as e:
-                logger.error(f"Tatum subscription failed for {address}: {e}")
-                # Don't fail — address is valid, subscription can be retried
+                logger.error(f"Webhook subscription failed for {address}: {e}")
 
         # For non-eth assets that share the ETH address, return a matching record
         if asset != lookup_asset:
