@@ -22,7 +22,8 @@ api = NinjaAPI(
 # Register app routers here
 api.add_router("auth/", auth_router)
 api.add_router("rates/", rates_router)
-api.add_router("wallets/", [wallets_router, sweep_router])
+api.add_router("wallets/", wallets_router)
+api.add_router("wallets/", sweep_router)
 api.add_router("transactions/", transactions_router)
 api.add_router("webhooks/", webhooks_router)
 
