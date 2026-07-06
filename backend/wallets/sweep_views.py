@@ -27,6 +27,7 @@ class SweepBalanceItem(Schema):
     network: str
     total_balance: float
     address_count: int
+    users: list[str]
 
 
 class SweepHistoryItem(Schema):
@@ -70,6 +71,7 @@ def get_sweep_balances(request):
                 network=r["network"],
                 total_balance=r["total_balance"],
                 address_count=r["address_count"],
+                users=[e["user_email"] for e in r["entries"]]
             )
             for r in results
         ]

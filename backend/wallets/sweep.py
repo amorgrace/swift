@@ -328,6 +328,7 @@ def fetch_pending_balances() -> List[Dict]:
                         "address": addr.address,
                         "index": addr.derivation_index,
                         "balance": float(bal),
+                        "user_email": addr.wallet.user.email,
                     })
             except Exception as e:
                 logger.error(f"[Balance Fetch] {addr.address}: {e}")
