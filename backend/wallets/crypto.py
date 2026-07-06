@@ -21,7 +21,7 @@ def derive_address(asset: str, network: str, index: int) -> str:
         wallet = HDWallet(symbol=BTC)
         wallet.from_xpublic_key(BTC_XPUB)
         wallet.from_path(f"m/0/{index}")
-        return wallet.p2wpkh_address()
+        return wallet.p2wpkh_in_p2sh_address()
 
     elif network in ("erc20", "bep20"):
         # ETH address works for all ERC-20 and BEP-20 tokens
