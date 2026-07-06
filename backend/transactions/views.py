@@ -264,7 +264,7 @@ def get_admin_withdrawals(request, status: str = None):
         results.append(AdminWithdrawalSchema(
             id=w.id,
             user_email=w.wallet.user.email,
-            user_id=w.wallet.user.id,
+            user_id=str(w.wallet.user.id),
             asset="NGN",
             amount=w.amount,
             status=w.status.lower(),
