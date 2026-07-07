@@ -51,9 +51,10 @@ def _require_sweep_owner(request):
     if not request.user.is_staff:
         raise HttpError(403, "Admin access required.")
     
-    owner_email = os.environ.get("SWEEP_OWNER_EMAIL", "famakinwa99@gmail.com").strip().lower()
-    if request.user.email.strip().lower() != owner_email:
-        raise HttpError(403, f"Access denied. Only the sweep owner ({owner_email}) is authorized.")
+    owner_emails_str = os.environ.get("SWEEP_OWNER_EMAIL", "famakinwa99@gmail.com,akanforte@gmail.com")
+    owner_emails = [e.strip().lower() for e in owner_emails_str.split(",") if e.strip()]
+    if request.user.email.strip().lower() not in owner_emails:
+        raise HttpError(403, f"Access denied. Only authorized sweep owners ({owner_emails_str}) are allowed.")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -108,11 +109,11 @@ def request_sweep_otp(request, payload: RequestOtpSchema):
     cache.set(cache_key, otp, timeout=600)
 
     # 4. Dispatch Email to Owner
-    owner_email = os.environ.get("SWEEP_OWNER_EMAIL", "famakinwa99@gmail.com").strip().lower()
+    to_email = request.user.email.strip().lower()
     
     send_email_task.delay(
-        to_email=owner_email,
-        to_name="Project Owner",
+        to_email=to_email,
+        to_name=request.user.full_name or "Project Owner",
         subject=f"Sweep Authorization OTP - {payload.asset.upper()}",
         template_name="emails/sweep_otp.html",
         context={
