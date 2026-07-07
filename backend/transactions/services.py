@@ -11,6 +11,9 @@ from wallets.models import NGNWallet, BankAccount
 from wallets.services import PaystackService
 from kyc.models import KYCVerification, KYCStatus
 from notifications.tasks import send_email_task, send_telegram_task, create_notification_task
+from authenticator.email import send_email
+from notifications.models import Notification
+from notifications.telegram import TelegramNotifier
 from .models import (
     Deposit,
     Withdrawal,
@@ -66,15 +69,18 @@ class DepositService:
                 continue
 
             # We'll just assume confirmed if it hits the webhook, though we could check blockNum
-            try:
-                # Need to lookup address case-insensitively since Alchemy might send checksummed
-                deposit_addr = DepositAddress.objects.select_related("wallet__user").get(address__iexact=address)
-            except DepositAddress.DoesNotExist:
+            # Use filter().first() because the same address can exist as both erc20 and bep20 rows
+            deposit_addr = DepositAddress.objects.select_related("wallet__user").filter(
+                address__iexact=address
+            ).first()
+
+            if not deposit_addr:
                 logger.warning(f"No DepositAddress found for address {address}")
                 continue
 
             wallet = deposit_addr.wallet
-            network = deposit_addr.network
+            # Alchemy webhook is Ethereum-only, so force erc20 regardless of which row we got
+            network = "erc20"
 
             try:
                 crypto_amount = Decimal(amount_str)
@@ -163,26 +169,32 @@ class DepositService:
 
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-        send_email_task.delay(
-            to_email=wallet.user.email,
-            to_name=wallet.user.full_name,
-            subject=f"SwiftTrade \u2013 Deposit Received ({asset.upper()})",
-            template_name="emails/deposit_received.html",
-            context={
-                "full_name": wallet.user.full_name,
-                "asset": asset.upper(),
-                "crypto_amount": str(crypto_amount),
-                "ngn_amount": f"{ngn_amount:,.2f}",
-                "timestamp": timestamp,
-            },
-        )
+        try:
+            send_email(
+                to_email=wallet.user.email,
+                to_name=wallet.user.full_name,
+                subject=f"SwiftTrade \u2013 Deposit Received ({asset.upper()})",
+                template_name="emails/deposit_received.html",
+                context={
+                    "full_name": wallet.user.full_name,
+                    "asset": asset.upper(),
+                    "crypto_amount": str(crypto_amount),
+                    "ngn_amount": f"{ngn_amount:,.2f}",
+                    "timestamp": timestamp,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Failed to send deposit email: {e}")
 
-        create_notification_task.delay(
-            user_id=wallet.user.id,
-            notification_type='trade',
-            title='Deposit Received & Converted',
-            body=f'Your deposit of {crypto_amount} {asset.upper()} was successfully converted to \u20a6{ngn_amount:,.2f}.',
-        )
+        try:
+            Notification.objects.create(
+                user=wallet.user,
+                type='trade',
+                title='Deposit Received & Converted',
+                body=f'Your deposit of {crypto_amount} {asset.upper()} was successfully converted to \u20a6{ngn_amount:,.2f}.',
+            )
+        except Exception as e:
+            logger.error(f"Failed to create deposit notification: {e}")
 
         telegram_msg = (
             "\U0001f4e5 <b>NEW CRYPTO DEPOSIT</b>\n"
@@ -194,7 +206,10 @@ class DepositService:
             f"\U0001f517 <b>Swift Ref:</b> <code>{tx_hash}</code>\n"
             f"\u23f0 {timestamp}"
         )
-        send_telegram_task.delay(telegram_msg)
+        try:
+            TelegramNotifier._send(telegram_msg)
+        except Exception as e:
+            logger.error(f"Failed to send deposit telegram: {e}")
 
         logger.info(f"Deposit {tx_hash} processed for wallet {wallet.id}")
 
@@ -273,49 +288,58 @@ class WithdrawalService:
                 related_withdrawal=withdrawal,
             )
 
-        # --- Background notifications (non-blocking) ---
+        # --- Direct notifications (no Celery/Redis dependency) ---
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
         # Email user
-        send_email_task.delay(
-            to_email=user.email,
-            to_name=user.full_name,
-            subject="SwiftTrade \u2013 Withdrawal Request Received",
-            template_name="emails/withdrawal_initiated.html",
-            context={
-                "full_name": user.full_name,
-                "amount": f"{amount:,.2f}",
-                "bank_name": bank_account.bank_name,
-                "account_number": bank_account.account_number,
-                "timestamp": timestamp,
-            },
-        )
-
-        # Email each admin (each as a separate task — parallelised by workers)
-        from authenticator.models import User as UserModel
-        for admin in UserModel.objects.filter(is_staff=True).values('email', 'full_name'):
-            send_email_task.delay(
-                to_email=admin['email'],
-                to_name=admin['full_name'],
-                subject="SwiftTrade Admin \u2013 New Withdrawal Request",
-                template_name="emails/admin_withdrawal_pending.html",
+        try:
+            send_email(
+                to_email=user.email,
+                to_name=user.full_name,
+                subject="SwiftTrade \u2013 Withdrawal Request Received",
+                template_name="emails/withdrawal_initiated.html",
                 context={
-                    "admin_name": admin['full_name'],
-                    "user_name": user.full_name,
+                    "full_name": user.full_name,
                     "amount": f"{amount:,.2f}",
                     "bank_name": bank_account.bank_name,
                     "account_number": bank_account.account_number,
                     "timestamp": timestamp,
                 },
             )
+        except Exception as e:
+            logger.error(f"Failed to send withdrawal request email: {e}")
+
+        # Email each admin
+        from authenticator.models import User as UserModel
+        for admin in UserModel.objects.filter(is_staff=True).values('email', 'full_name'):
+            try:
+                send_email(
+                    to_email=admin['email'],
+                    to_name=admin['full_name'],
+                    subject="SwiftTrade Admin \u2013 New Withdrawal Request",
+                    template_name="emails/admin_withdrawal_pending.html",
+                    context={
+                        "admin_name": admin['full_name'],
+                        "user_name": user.full_name,
+                        "amount": f"{amount:,.2f}",
+                        "bank_name": bank_account.bank_name,
+                        "account_number": bank_account.account_number,
+                        "timestamp": timestamp,
+                    },
+                )
+            except Exception as e:
+                logger.error(f"Failed to send admin withdrawal email: {e}")
 
         # In-app notification
-        create_notification_task.delay(
-            user_id=user.id,
-            notification_type='withdrawal',
-            title='Withdrawal Requested',
-            body=f'Your withdrawal of \u20a6{amount:,.2f} to {bank_account.bank_name} has been requested and is pending review.',
-        )
+        try:
+            Notification.objects.create(
+                user=user,
+                type='withdrawal',
+                title='Withdrawal Requested',
+                body=f'Your withdrawal of \u20a6{amount:,.2f} to {bank_account.bank_name} has been requested and is pending review.',
+            )
+        except Exception as e:
+            logger.error(f"Failed to create withdrawal notification: {e}")
 
         # Telegram admin alert
         telegram_msg = (
@@ -327,7 +351,10 @@ class WithdrawalService:
             f"\U0001f517 <b>Ref:</b> <code>{withdrawal_ref}</code>\n"
             f"\u23f0 {timestamp}"
         )
-        send_telegram_task.delay(telegram_msg)
+        try:
+            TelegramNotifier._send(telegram_msg)
+        except Exception as e:
+            logger.error(f"Failed to send withdrawal telegram: {e}")
 
         return {
             "message": "Withdrawal request received and pending review",
