@@ -120,7 +120,9 @@ class DepositService:
             
             for address in addresses:
                 try:
-                    deposit_addr = DepositAddress.objects.select_related("wallet__user").get(address=address, asset="btc")
+                    deposit_addr = DepositAddress.objects.select_related("wallet__user").filter(address=address, asset="btc").first()
+                    if not deposit_addr:
+                        continue
                     
                     wallet = deposit_addr.wallet
                     network = deposit_addr.network
@@ -128,8 +130,8 @@ class DepositService:
                     crypto_amount = Decimal(str(value_satoshis)) / Decimal("100000000") # Satoshi to BTC
 
                     DepositService._credit_wallet(wallet, network, "btc", crypto_amount, tx_hash)
-                except DepositAddress.DoesNotExist:
-                    pass
+                except Exception as e:
+                    logger.error(f"Error processing output address {address}: {e}")
 
         return True
 
