@@ -22,6 +22,11 @@ from .services import WithdrawalService
 from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus, TransactionType
 from wallets.models import NGNWallet
 from notifications.tasks import send_email_task, send_telegram_task, create_notification_task
+from authenticator.email import send_email
+from notifications.models import Notification
+from notifications.telegram import TelegramNotifier
+import logging
+logger = logging.getLogger(__name__)
 
 router = Router(tags=['Transactions'])
 
@@ -300,26 +305,32 @@ def approve_withdrawal(request, withdrawal_id: int):
         
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    send_email_task.delay(
-        to_email=withdrawal.wallet.user.email,
-        to_name=withdrawal.wallet.user.full_name,
-        subject="SwiftTrade \u2013 Withdrawal Completed",
-        template_name="emails/withdrawal_completed.html",
-        context={
-            "full_name": withdrawal.wallet.user.full_name,
-            "amount": f"{withdrawal.amount:,.2f}",
-            "bank_name": withdrawal.bank_account.bank_name,
-            "account_number": withdrawal.bank_account.account_number,
-            "timestamp": timestamp,
-        },
-    )
+    try:
+        send_email(
+            to_email=withdrawal.wallet.user.email,
+            to_name=withdrawal.wallet.user.full_name,
+            subject="SwiftTrade \u2013 Withdrawal Completed",
+            template_name="emails/withdrawal_success.html",
+            context={
+                "full_name": withdrawal.wallet.user.full_name,
+                "amount": f"{withdrawal.amount:,.2f}",
+                "bank_name": withdrawal.bank_account.bank_name,
+                "account_number": withdrawal.bank_account.account_number,
+                "timestamp": timestamp,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to send withdrawal approval email: {e}")
     
-    create_notification_task.delay(
-        user_id=withdrawal.wallet.user.id,
-        notification_type='withdrawal',
-        title='Withdrawal Approved',
-        body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} to {withdrawal.bank_account.bank_name} has been approved and processed.'
-    )
+    try:
+        Notification.objects.create(
+            user_id=withdrawal.wallet.user.id,
+            type='withdrawal',
+            title='Withdrawal Approved',
+            body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} to {withdrawal.bank_account.bank_name} has been approved and processed.'
+        )
+    except Exception as e:
+        logger.error(f"Failed to create notification: {e}")
     
     telegram_msg = (
         "\u2705 <b>WITHDRAWAL APPROVED</b>\n"
@@ -330,7 +341,10 @@ def approve_withdrawal(request, withdrawal_id: int):
         f"\U0001f517 <b>Ref:</b> <code>{withdrawal.paystack_reference}</code>\n"
         f"\u23f0 {timestamp}"
     )
-    send_telegram_task.delay(telegram_msg)
+    try:
+        TelegramNotifier._send(telegram_msg)
+    except Exception as e:
+        logger.error(f"Failed to send telegram msg: {e}")
     
     return {"message": "Withdrawal approved successfully."}
 
@@ -358,25 +372,31 @@ def reject_withdrawal(request, withdrawal_id: int):
         
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    send_email_task.delay(
-        to_email=withdrawal.wallet.user.email,
-        to_name=withdrawal.wallet.user.full_name,
-        subject="SwiftTrade \u2013 Withdrawal Rejected",
-        template_name="emails/withdrawal_failed.html",
-        context={
-            "full_name": withdrawal.wallet.user.full_name,
-            "amount": f"{withdrawal.amount:,.2f}",
-            "bank_name": withdrawal.bank_account.bank_name,
-            "timestamp": timestamp,
-        },
-    )
+    try:
+        send_email(
+            to_email=withdrawal.wallet.user.email,
+            to_name=withdrawal.wallet.user.full_name,
+            subject="SwiftTrade \u2013 Withdrawal Rejected",
+            template_name="emails/withdrawal_failed.html",
+            context={
+                "full_name": withdrawal.wallet.user.full_name,
+                "amount": f"{withdrawal.amount:,.2f}",
+                "bank_name": withdrawal.bank_account.bank_name,
+                "timestamp": timestamp,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to send withdrawal rejection email: {e}")
     
-    create_notification_task.delay(
-        user_id=withdrawal.wallet.user.id,
-        notification_type='withdrawal',
-        title='Withdrawal Rejected',
-        body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} has been rejected. Funds have been returned to your wallet.'
-    )
+    try:
+        Notification.objects.create(
+            user_id=withdrawal.wallet.user.id,
+            type='withdrawal',
+            title='Withdrawal Rejected',
+            body=f'Your withdrawal of ₦{withdrawal.amount:,.2f} has been rejected. Funds have been returned to your wallet.'
+        )
+    except Exception as e:
+        logger.error(f"Failed to create notification: {e}")
     
     telegram_msg = (
         "\u274c <b>WITHDRAWAL REJECTED</b>\n"
@@ -388,6 +408,9 @@ def reject_withdrawal(request, withdrawal_id: int):
         f"\u2757 <b>Reason:</b> Rejected by Admin\n"
         f"\u23f0 {timestamp}"
     )
-    send_telegram_task.delay(telegram_msg)
+    try:
+        TelegramNotifier._send(telegram_msg)
+    except Exception as e:
+        logger.error(f"Failed to send telegram msg: {e}")
     
     return {"message": "Withdrawal rejected and funds refunded."}

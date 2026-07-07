@@ -29,7 +29,7 @@ def subscribe_to_alchemy(address: str) -> bool:
         "addresses_to_remove": []
     }
     
-    response = requests.put(url, headers=headers, json=payload, timeout=10)
+    response = requests.patch(url, headers=headers, json=payload, timeout=10)
     
     try:
         response.raise_for_status()

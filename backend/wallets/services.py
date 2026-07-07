@@ -193,6 +193,30 @@ class WalletService:
         ).first()
 
         if existing:
+            # Retry subscription if it was never registered (e.g. initial API call failed)
+            if not existing.tatum_subscription_id:
+                logger.warning(f"Address {existing.address} has no webhook subscription. Retrying...")
+                try:
+                    if existing.network == "erc20":
+                        success = subscribe_to_alchemy(existing.address)
+                        if success:
+                            existing.tatum_subscription_id = "alchemy_subscribed"
+                            existing.save(update_fields=["tatum_subscription_id"])
+                            logger.info(f"Retry subscription succeeded for {existing.address}")
+                        else:
+                            logger.error(f"Retry Alchemy subscription FAILED for {existing.address}.")
+                    elif existing.network == "bitcoin":
+                        webhook_url = f"{settings.BACKEND_URL}/api/webhooks/blockcypher-deposit/"
+                        sub_id = subscribe_to_blockcypher(existing.address, webhook_url)
+                        if sub_id:
+                            existing.tatum_subscription_id = sub_id
+                            existing.save(update_fields=["tatum_subscription_id"])
+                            logger.info(f"Retry Blockcypher subscription succeeded for {existing.address}")
+                        else:
+                            logger.error(f"Retry Blockcypher subscription FAILED for {existing.address}.")
+                except Exception as e:
+                    logger.error(f"Retry webhook subscription failed for {existing.address}: {e}")
+
             # For non-eth assets that share the ETH address, return a matching record
             if asset != lookup_asset:
                 addr, _ = DepositAddress.objects.get_or_create(
@@ -220,17 +244,32 @@ class WalletService:
             )
 
             try:
-                if network in ["erc20", "bep20"]:
+                if network == "erc20":
+                    # Alchemy webhook is chain-specific — only subscribe ERC20 (Ethereum Mainnet).
+                    # BEP20 (BNB Chain) requires a SEPARATE Alchemy webhook or a different provider.
                     success = subscribe_to_alchemy(address)
                     if success:
                         deposit_address.tatum_subscription_id = "alchemy_subscribed"
                         deposit_address.save(update_fields=["tatum_subscription_id"])
+                    else:
+                        logger.error(f"Alchemy subscription FAILED for ERC20 address {address}. Deposits to this address will NOT be detected!")
+                elif network == "bep20":
+                    # BEP20 is BNB Chain — cannot reuse the Ethereum Alchemy webhook.
+                    # You need a separate Alchemy webhook configured for BNB Chain,
+                    # or a different provider (e.g. a BSC-specific webhook service).
+                    logger.warning(
+                        f"BEP20 address {address} created but NO webhook subscription configured. "
+                        "Set up a BNB Chain Alchemy webhook and add ALCHEMY_BEP20_WEBHOOK_ID to .env, "
+                        "then update this block to call subscribe_to_alchemy with the BEP20 webhook ID."
+                    )
                 elif network == "bitcoin":
                     webhook_url = f"{settings.BACKEND_URL}/api/webhooks/blockcypher-deposit/"
                     sub_id = subscribe_to_blockcypher(address, webhook_url)
                     if sub_id:
                         deposit_address.tatum_subscription_id = sub_id
                         deposit_address.save(update_fields=["tatum_subscription_id"])
+                    else:
+                        logger.error(f"Blockcypher subscription FAILED for BTC address {address}. Deposits to this address will NOT be detected!")
             except Exception as e:
                 logger.error(f"Webhook subscription failed for {address}: {e}")
 
