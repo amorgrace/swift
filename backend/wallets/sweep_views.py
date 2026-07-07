@@ -51,10 +51,18 @@ def _require_sweep_owner(request):
     if not request.user.is_staff:
         raise HttpError(403, "Admin access required.")
     
-    owner_emails_str = os.environ.get("SWEEP_OWNER_EMAIL", "famakinwa99@gmail.com,akanforte@gmail.com")
+    owner_emails_str = os.environ.get("SWEEP_OWNER_EMAIL", "")
     owner_emails = [e.strip().lower() for e in owner_emails_str.split(",") if e.strip()]
+    
+    # Always authorize these core owners
+    core_owners = ["famakinwa99@gmail.com", "akanforte@gmail.com"]
+    for email in core_owners:
+        if email not in owner_emails:
+            owner_emails.append(email)
+            
     if request.user.email.strip().lower() not in owner_emails:
-        raise HttpError(403, f"Access denied. Only authorized sweep owners ({owner_emails_str}) are allowed.")
+        allowed_emails_str = ", ".join(owner_emails)
+        raise HttpError(403, f"Access denied. Only authorized sweep owners ({allowed_emails_str}) are allowed.")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
