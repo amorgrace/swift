@@ -52,16 +52,7 @@ class TelegramNotifier:
     #  User Events                                                          #
     # ------------------------------------------------------------------ #
 
-    @classmethod
-    def new_user_registered(cls, full_name: str, email: str) -> None:
-        message = (
-            "🟢 <b>NEW USER REGISTERED</b>\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            f"👤 <b>Name:</b> {full_name}\n"
-            f"📧 <b>Email:</b> {email}\n"
-            f"⏰ {cls._now()}"
-        )
-        cls._send(message)
+
 
     # ------------------------------------------------------------------ #
     #  Deposit Events                                                       #
