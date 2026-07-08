@@ -240,8 +240,12 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_TRACK_STARTED = True
-# Acknowledge task only after it completes — safe on worker crash/restart
-CELERY_TASK_ACKS_LATE = True
+# Acknowledge tasks immediately on receipt.
+# ACKS_LATE=True caused old email/telegram notification tasks to be re-delivered
+# after worker restarts because they stayed in the Redis queue until completion.
+# The critical path (wallet crediting) is NOT in Celery, so there is no
+# reliability risk from switching this off.
+CELERY_TASK_ACKS_LATE = False
 # Don't pre-fetch more tasks than the worker can handle at once
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 

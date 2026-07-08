@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 import uuid
 from datetime import datetime
+from django.db import IntegrityError
 
 from django.conf import settings
 from django.db import transaction
@@ -59,10 +60,6 @@ class DepositService:
             if not tx_hash or not address:
                 continue
 
-            if Deposit.objects.filter(quidax_reference=tx_hash).exists():
-                logger.info(f"Deposit {tx_hash} already processed.")
-                continue
-
             # Add bnb to the asset map
             asset_map = {"eth": "eth", "usdt": "usdt", "usdc": "usdc", "bnb": "bnb"}
             asset = asset_map.get(raw_asset)
@@ -112,10 +109,6 @@ class DepositService:
         if not tx_hash:
             return False
 
-        if Deposit.objects.filter(quidax_reference=tx_hash).exists():
-            logger.info(f"Deposit {tx_hash} already processed.")
-            return True
-
         if confirmations < 2:
             logger.info(f"Blockcypher deposit {tx_hash} needs more confirmations ({confirmations}/2)")
             return True
@@ -143,38 +136,62 @@ class DepositService:
 
     @staticmethod
     def _credit_wallet(wallet, network, asset, crypto_amount, tx_hash):
-        with transaction.atomic():
-            rate_info = RateService.calculate_ngn_amount(asset, crypto_amount)
-            ngn_amount = rate_info["ngn_amount"]
-            user_rate = rate_info["user_rate"]
-            margin = rate_info["margin_percentage"]
-            ngn_usd_rate = rate_info.get("ngn_usd_rate")
+        """
+        Atomically credit a wallet for a crypto deposit.
 
-            deposit = Deposit.objects.create(
-                wallet=wallet,
-                asset=asset,
-                network=network,
-                crypto_amount=crypto_amount,
-                rate_applied=user_rate,
-                margin_applied=margin,
-                ngn_usd_rate=ngn_usd_rate,
-                ngn_amount=ngn_amount,
-                quidax_reference=tx_hash,
-                status=DepositStatus.CONVERTED,
-            )
+        Idempotency is enforced at the DB level: `quidax_reference` has a
+        unique constraint, so a duplicate tx_hash will raise IntegrityError
+        which we catch here and silently skip.  This is safe against:
+          - Webhook provider retries
+          - Concurrent duplicate webhook deliveries
+          - Manual credits that already recorded the same tx_hash
+        """
+        try:
+            with transaction.atomic():
+                # Re-check inside the atomic block so concurrent requests
+                # cannot both slip past the guard before either commits.
+                if Deposit.objects.filter(quidax_reference=tx_hash).exists():
+                    logger.info(f"[idempotency] Deposit {tx_hash} already recorded — skipping.")
+                    return
 
-            wallet.credit(ngn_amount)
+                rate_info = RateService.calculate_ngn_amount(asset, crypto_amount)
+                ngn_amount = rate_info["ngn_amount"]
+                user_rate = rate_info["user_rate"]
+                margin = rate_info["margin_percentage"]
+                ngn_usd_rate = rate_info.get("ngn_usd_rate")
 
-            description = f"Received {crypto_amount} {asset.upper()} → ₦{ngn_amount:,.2f}"
-            Transaction.objects.create(
-                wallet=wallet,
-                type=TransactionType.DEPOSIT,
-                amount=ngn_amount,
-                description=description,
-                status=DepositStatus.CONVERTED,
-                related_deposit=deposit,
-            )
+                deposit = Deposit.objects.create(
+                    wallet=wallet,
+                    asset=asset,
+                    network=network,
+                    crypto_amount=crypto_amount,
+                    rate_applied=user_rate,
+                    margin_applied=margin,
+                    ngn_usd_rate=ngn_usd_rate,
+                    ngn_amount=ngn_amount,
+                    quidax_reference=tx_hash,
+                    status=DepositStatus.CONVERTED,
+                )
 
+                wallet.credit(ngn_amount)
+
+                description = f"Received {crypto_amount} {asset.upper()} → ₦{ngn_amount:,.2f}"
+                Transaction.objects.create(
+                    wallet=wallet,
+                    type=TransactionType.DEPOSIT,
+                    amount=ngn_amount,
+                    description=description,
+                    status=DepositStatus.CONVERTED,
+                    related_deposit=deposit,
+                )
+
+        except IntegrityError:
+            # The unique constraint on quidax_reference fired — a concurrent
+            # request already inserted this tx_hash.  Nothing to do.
+            logger.warning(f"[idempotency] IntegrityError for tx_hash {tx_hash} — duplicate skipped.")
+            return
+
+        # ── Notifications (only reached on a successful, non-duplicate insert) ──
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
         try:
