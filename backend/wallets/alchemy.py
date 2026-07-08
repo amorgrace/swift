@@ -43,17 +43,27 @@ def subscribe_to_alchemy(address: str, webhook_id: str = None) -> bool:
 
 def verify_alchemy_signature(request) -> bool:
     """Verify HMAC signature on incoming Alchemy webhook."""
-    if not ALCHEMY_WEBHOOK_SECRET:
-        return True  # dev mode / no secret configured
-        
     signature = request.headers.get("x-alchemy-signature", "")
     if not signature:
         return False
         
-    expected = hmac.new(
-        ALCHEMY_WEBHOOK_SECRET.encode(),
-        request.body,
-        hashlib.sha256,
-    ).hexdigest()
-    
-    return hmac.compare_digest(signature, expected)
+    keys_to_try = []
+    if os.environ.get("ALCHEMY_SIGNING_KEY"):
+        keys_to_try.append(os.environ.get("ALCHEMY_SIGNING_KEY"))
+    if os.environ.get("ALCHEMY_BEP20_SIGNING_KEY"):
+        keys_to_try.append(os.environ.get("ALCHEMY_BEP20_SIGNING_KEY"))
+        
+    if not keys_to_try:
+        return True  # dev mode / no secret configured
+        
+    for secret in keys_to_try:
+        expected = hmac.new(
+            secret.encode(),
+            request.body,
+            hashlib.sha256,
+        ).hexdigest()
+        
+        if hmac.compare_digest(signature, expected):
+            return True
+            
+    return False
