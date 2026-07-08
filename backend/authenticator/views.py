@@ -16,6 +16,7 @@ from .schemas import (
     AdminUserResponseSchema,
     AdminAuthTokenResponseSchema,
     AdminUserDetailsResponseSchema,
+    FreezeUserSchema,
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -317,7 +318,10 @@ def get_all_users(request, filters: UserFilterSchema = Query(...)):
             kyc_status=kyc_status,
             ngn_balance=balance,
             is_staff=user.is_staff,
-            is_active=user.is_active
+            is_active=user.is_active,
+            is_frozen=user.is_frozen,
+            frozen_reason=user.frozen_reason or None,
+            frozen_at=user.frozen_at.isoformat() if user.frozen_at else None,
         ))
         
     return result
@@ -390,8 +394,57 @@ def get_user_details(request, user_id: str):
         ngn_balance=balance,
         is_staff=user.is_staff,
         is_active=user.is_active,
+        is_frozen=user.is_frozen,
+        frozen_reason=user.frozen_reason or None,
+        frozen_at=user.frozen_at.isoformat() if user.frozen_at else None,
         crypto_addresses=crypto_addresses,
         bank_accounts=bank_accounts,
         total_deposits_ngn=total_deposits,
         total_withdrawals_ngn=total_withdrawals
     )
+
+
+@router.post("/admin/users/{user_id}/freeze", response={200: dict})
+def toggle_freeze_user(request, user_id: str, payload: FreezeUserSchema):
+    """Admin endpoint to freeze or unfreeze a user account."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        raise HttpError(404, "User not found.")
+    
+    from datetime import datetime
+    
+    user.is_frozen = payload.frozen
+    if payload.frozen:
+        user.frozen_reason = payload.reason or "No reason provided"
+        user.frozen_at = datetime.utcnow()
+    else:
+        user.frozen_reason = ''
+        user.frozen_at = None
+    user.save(update_fields=['is_frozen', 'frozen_reason', 'frozen_at'])
+    
+    # Send Telegram notification
+    action = "FROZEN" if payload.frozen else "UNFROZEN"
+    reason_text = f"\n\U0001f4dd <b>Reason:</b> {payload.reason}" if payload.frozen and payload.reason else ""
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    telegram_msg = (
+        f"\u26a0\ufe0f <b>ACCOUNT {action} BY ADMIN</b>\n"
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+        f"\U0001f464 <b>User:</b> {user.full_name} ({user.email})\n"
+        f"\U0001f512 <b>Status:</b> {action}{reason_text}\n"
+        f"\U0001f46e <b>Admin:</b> {request.user.full_name}\n"
+        f"\u23f0 {timestamp}"
+    )
+    try:
+        from notifications.telegram import TelegramNotifier
+        TelegramNotifier._send(telegram_msg)
+    except Exception:
+        pass
+    
+    return {
+        "message": f"User account has been {'frozen' if payload.frozen else 'unfrozen'} successfully.",
+        "is_frozen": user.is_frozen,
+    }

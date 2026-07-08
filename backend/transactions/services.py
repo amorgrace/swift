@@ -256,6 +256,10 @@ class WithdrawalService:
         if amount < min_amount:
             raise ValueError(f"Minimum withdrawal amount is ₦{min_amount:,.2f}")
 
+        # Block withdrawals for frozen accounts
+        if user.is_frozen:
+            raise ValueError("Your account is currently frozen. Withdrawals are disabled. Please contact support.")
+
         try:
             wallet = NGNWallet.objects.get(user=user)
         except NGNWallet.DoesNotExist:

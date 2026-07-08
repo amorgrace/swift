@@ -96,6 +96,9 @@ class AdminUserResponseSchema(UserResponseSchema):
     ngn_balance: Decimal
     is_staff: bool
     is_active: bool
+    is_frozen: bool = False
+    frozen_reason: Optional[str] = None
+    frozen_at: Optional[str] = None
 
 class AdminAuthTokenResponseSchema(BaseModel):
     """Schema for admin authentication token response"""
@@ -121,3 +124,9 @@ class AdminUserDetailsResponseSchema(AdminUserResponseSchema):
     bank_accounts: list[BankAccountSchema]
     total_deposits_ngn: Decimal
     total_withdrawals_ngn: Decimal
+
+
+class FreezeUserSchema(BaseModel):
+    """Schema for freezing/unfreezing a user account"""
+    frozen: bool
+    reason: str = ""

@@ -41,6 +41,21 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_frozen = models.BooleanField(
+        default=False,
+        help_text='Freeze account to block withdrawals',
+    )
+    frozen_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text='Admin reason for freezing the account',
+    )
+    frozen_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When the account was frozen',
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']
