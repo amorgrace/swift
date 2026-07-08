@@ -34,6 +34,7 @@ router = Router(tags=['Transactions'])
 
 class TransactionFilterSchema(BaseModel):
     type: Optional[str] = None
+    user_id: Optional[str] = None
 
 
 @router.post('/withdraw', response={200: dict})
@@ -113,7 +114,7 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
 
 
 @router.get('/admin/all', response=List[AdminTransactionSchema])
-@paginate(PageNumberPagination, page_size=50)
+@paginate(PageNumberPagination, page_size=10)
 def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query(...)):
     """Admin endpoint to list all transactions globally."""
     if not request.user.is_staff:
@@ -127,6 +128,9 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
     
     if filters.type:
         qs = qs.filter(type=filters.type)
+        
+    if filters.user_id:
+        qs = qs.filter(wallet__user_id=filters.user_id)
 
     results = []
     for t in qs:
