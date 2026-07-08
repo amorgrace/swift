@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" dir="ltr"
+      style="background-color:#050505 !important;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="dark only">
+<meta name="supported-color-schemes" content="dark only">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<!--[if mso]>
+<noscript><xml><o:OfficeDocumentSettings>
+<o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch>
+</o:OfficeDocumentSettings></xml></noscript>
+<style>table { border-collapse: collapse; } td { font-family: Arial, sans-serif; }</style>
+<![endif]-->
+<style type="text/css">
+  :root { color-scheme: dark only !important; }
+  u + .body { background-color: #050505 !important; }
+  [data-ogsc], [data-ogsb] { background-color: #050505 !important; color: #ffffff !important; }
+  @media (prefers-color-scheme: dark) {
+    body, .body, .email-bg { background-color: #050505 !important; color: #fff !important; }
+    td, th { background-color: inherit !important; }
+  }
+  body, .body { background-color: #050505 !important; }
+  a { color: #0ECB81; }
+</style>
+</head>
+<body class="body" style="margin:0;padding:0;width:100%;background-color:#050505 !important;color:#ffffff;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;-ms-text-size-adjust:100%;">
+
+<!-- Outermost wrapper table -->
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+       bgcolor="#050505" style="background-color:#050505 !important;width:100%;margin:0;padding:0;">
+<tr>
+<td align="center" valign="top"
+    bgcolor="#050505" style="background-color:#050505 !important;padding:0;">
+
+  <!-- Padding table -->
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+         bgcolor="#050505" style="background-color:#050505 !important;">
+  <tr>
+  <td bgcolor="#050505" style="background-color:#050505 !important;padding:40px 20px;">
+
+    <!-- Content table — 560px centered -->
+    <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0"
+           align="center" bgcolor="#050505"
+           style="background-color:#050505;max-width:560px;width:100%;margin:0 auto;">
+
+    <!-- Header -->
+    <tr>
+    <td align="center" bgcolor="#050505" style="background-color:#050505;padding:32px 0 24px;">
+      <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:28px;letter-spacing:2px;color:#ffffff;">SWIFT</span><span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:28px;letter-spacing:2px;color:#0ECB81;">TRADE</span>
+      <br>
+      <span style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#555555;">Trade Crypto &middot; Receive Naira</span>
+    </td>
+    </tr>
+
+    <!-- Card -->
+    <tr>
+    <td bgcolor="#050505" style="background-color:#050505;padding:0;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+             style="background-color:#101010;border:1px solid #1a1a1a;border-radius:14px;overflow:hidden;">
+
+      <!-- Amber top bar instead of green — signals a correction/alert -->
+      <tr><td style="height:4px;background:linear-gradient(90deg,#F0B90B,#e6a800);font-size:0;line-height:0;">&nbsp;</td></tr>
+
+      <tr>
+      <td bgcolor="#101010" style="background-color:#101010;padding:32px 32px 28px;">
+
+        <!-- Icon -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto 20px;">
+        <tr><td style="width:52px;height:52px;border-radius:14px;background-color:rgba(240,185,11,0.12);text-align:center;line-height:52px;font-size:24px;">⚠️</td></tr>
+        </table>
+
+        <p style="margin:0 0 8px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#F0B90B;">Deposit Reversal Notice</span></p>
+        <h1 style="font-size:22px;font-weight:600;color:#ffffff;margin:0 0 10px;line-height:1.3;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">A deposit has been reversed.</h1>
+        <p style="font-size:14px;color:#888888;line-height:1.65;margin:0 0 20px;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">
+          Hi <strong style="color:#ffffff;">{{ full_name }}</strong>, a duplicate deposit credit was identified on your account and has been reversed by our team. Your wallet balance has been updated accordingly.
+        </p>
+
+        <!-- Amount reversed -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr><td align="center" bgcolor="#101010" style="background-color:#101010;padding:20px 0 8px;">
+          <span style="font-size:12px;color:#555555;letter-spacing:1px;text-transform:uppercase;">Amount Reversed</span><br><br>
+          <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:48px;letter-spacing:2px;line-height:1;color:#F0B90B;">&#8358;{{ ngn_amount }}</span><br>
+          <span style="font-size:13px;color:#555555;font-family:'DM Mono', 'Courier New', monospace;">NGN</span>
+        </td></tr>
+        </table>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-top:1px solid #1a1a1a;height:1px;font-size:0;line-height:0;padding:12px 0 12px;" bgcolor="#101010">&nbsp;</td></tr></table>
+
+        <!-- Detail rows -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="border-bottom:1px solid #141414;">
+        <tr>
+          <td style="padding:11px 0;font-size:13px;color:#555555;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;text-align:left;" bgcolor="#101010">Asset</td>
+          <td style="padding:11px 0;font-size:12px;color:#cccccc;font-family:'DM Mono', 'Courier New', monospace;text-align:right;" bgcolor="#101010">{{ asset }}</td>
+        </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="border-bottom:1px solid #141414;">
+        <tr>
+          <td style="padding:11px 0;font-size:13px;color:#555555;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;text-align:left;" bgcolor="#101010">Crypto Amount</td>
+          <td style="padding:11px 0;font-size:12px;color:#cccccc;font-family:'DM Mono', 'Courier New', monospace;text-align:right;" bgcolor="#101010">{{ crypto_amount }} {{ asset }}</td>
+        </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="border-bottom:1px solid #141414;">
+        <tr>
+          <td style="padding:11px 0;font-size:13px;color:#555555;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;text-align:left;" bgcolor="#101010">Reason</td>
+          <td style="padding:11px 0;font-size:12px;color:#cccccc;font-family:'DM Mono', 'Courier New', monospace;text-align:right;" bgcolor="#101010">{{ reason }}</td>
+        </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="border-bottom:1px solid #141414;">
+        <tr>
+          <td style="padding:11px 0;font-size:13px;color:#555555;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;text-align:left;" bgcolor="#101010">Reversal Time</td>
+          <td style="padding:11px 0;font-size:12px;color:#cccccc;font-family:'DM Mono', 'Courier New', monospace;text-align:right;" bgcolor="#101010">{{ timestamp }}</td>
+        </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="border-bottom:1px solid #141414;">
+        <tr>
+          <td style="padding:11px 0;font-size:13px;color:#555555;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;text-align:left;" bgcolor="#101010">Updated Balance</td>
+          <td style="padding:11px 0;font-size:12px;color:#0ECB81;font-family:'DM Mono', 'Courier New', monospace;text-align:right;" bgcolor="#101010">&#8358;{{ new_balance }}</td>
+        </tr>
+        </table>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+               style="border-bottom:1px solid #141414;">
+        <tr>
+          <td style="padding:11px 0;font-size:13px;color:#555555;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;text-align:left;" bgcolor="#101010">Status</td>
+          <td style="padding:11px 0;font-size:12px;color:#cccccc;font-family:'DM Mono', 'Courier New', monospace;text-align:right;" bgcolor="#101010">
+            <span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background-color:rgba(240,185,11,0.12);color:#F0B90B;">Reversed</span>
+          </td>
+        </tr>
+        </table>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-top:1px solid #1a1a1a;height:1px;font-size:0;line-height:0;padding:16px 0 8px;" bgcolor="#101010">&nbsp;</td></tr></table>
+
+        <!-- Reassurance note -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr><td bgcolor="#0d1f17" style="background-color:#0d1f17;border:1px solid #163d26;border-radius:10px;padding:16px 20px;">
+          <p style="margin:0;font-size:13px;color:#7ecfa5;line-height:1.6;font-family:'Outfit', 'Segoe UI', Arial, sans-serif;">
+            <strong style="color:#0ECB81;">Why did this happen?</strong><br>
+            This credit was recorded more than once on your account due to a system error during processing. We've corrected the balance to ensure accuracy. If you believe this was done in error, please contact our support team immediately.
+          </p>
+        </td></tr>
+        </table>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:16px 0 0;" bgcolor="#101010">&nbsp;</td></tr></table>
+
+        <!-- CTA -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
+        <tr><td align="center" bgcolor="#101010" style="background-color:#101010;padding:8px 0 24px;">
+          <a href="#" style="display:inline-block;background-color:#0ECB81;color:#000000;font-size:14px;font-weight:600;padding:13px 36px;border-radius:10px;text-decoration:none;letter-spacing:0.3px;">View Dashboard &rarr;</a>
+        </td></tr>
+        </table>
+
+      </td>
+      </tr>
+      </table>
+    </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+    <td bgcolor="#050505" style="background-color:#050505;padding:28px 0 8px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr><td style="border-top:1px solid #111111;padding:0;height:1px;font-size:0;line-height:0;" bgcolor="#050505">&nbsp;</td></tr>
+      <tr>
+      <td align="center" bgcolor="#050505" style="background-color:#050505;padding:16px 0 0;">
+        <span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:2px;color:#2e2e2e;">SWIFT</span><span style="font-family:'Bebas Neue',Impact,sans-serif;font-size:18px;letter-spacing:2px;color:#1a5c3a;">TRADE</span>
+        <br>
+        <span style="font-size:11px;color:#2a2a2a;">&copy; {{ year }} SwiftTrade. All rights reserved.</span>
+      </td>
+      </tr>
+      </table>
+    </td>
+    </tr>
+
+    </table>
+    <!-- /Content table -->
+
+  </td>
+  </tr>
+  </table>
+  <!-- /Padding table -->
+
+</td>
+</tr>
+</table>
+<!-- /Outermost wrapper -->
+
+</body>
+</html>

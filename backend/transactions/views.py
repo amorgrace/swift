@@ -16,7 +16,8 @@ from .schemas import (
     AdminTransactionSchema,
     DepositSchema,
     DashboardStatsSchema,
-    AdminWithdrawalSchema
+    AdminWithdrawalSchema,
+    DepositReversalSchema
 )
 from .services import WithdrawalService
 from .models import Transaction, Deposit, Withdrawal, DepositStatus, WithdrawalStatus, TransactionType
@@ -414,3 +415,94 @@ def reject_withdrawal(request, withdrawal_id: int):
         logger.error(f"Failed to send telegram msg: {e}")
     
     return {"message": "Withdrawal rejected and funds refunded."}
+
+@router.post('/admin/deposits/{deposit_id}/reverse', response={200: DepositReversalSchema})
+def reverse_deposit(request, deposit_id: int):
+    """Admin endpoint to reverse a duplicated/erroneous deposit."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+        
+    from django.db import transaction
+    with transaction.atomic():
+        try:
+            deposit = Deposit.objects.select_for_update().get(id=deposit_id)
+        except Deposit.DoesNotExist:
+            raise HttpError(404, "Deposit not found.")
+            
+        if deposit.status == DepositStatus.FAILED:
+            raise HttpError(400, "Deposit is already reversed/failed.")
+            
+        deposit.status = DepositStatus.FAILED
+        deposit.save(update_fields=['status', 'updated_at'])
+        
+        txn_log = Transaction.objects.filter(related_deposit=deposit).first()
+        if txn_log:
+            txn_log.status = "failed"
+            txn_log.save(update_fields=['status'])
+            
+        # Debit the user wallet
+        wallet = deposit.wallet
+        # we lock the wallet
+        locked_wallet = NGNWallet.objects.select_for_update().get(pk=wallet.pk)
+        locked_wallet.balance -= deposit.ngn_amount
+        locked_wallet.save(update_fields=['balance', 'updated_at'])
+        wallet.balance = locked_wallet.balance
+        
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
+    # Send Reversal Email
+    try:
+        send_email(
+            to_email=wallet.user.email,
+            to_name=wallet.user.full_name,
+            subject="SwiftTrade \u2013 Deposit Reversal Notice",
+            template_name="emails/deposit_reversed.html",
+            context={
+                "full_name": wallet.user.full_name,
+                "asset": deposit.asset.upper(),
+                "crypto_amount": str(deposit.crypto_amount),
+                "ngn_amount": f"{deposit.ngn_amount:,.2f}",
+                "new_balance": f"{wallet.balance:,.2f}",
+                "reason": "Duplicate transaction reversal",
+                "timestamp": timestamp,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to send deposit reversal email: {e}")
+    
+    # Notify via App
+    try:
+        Notification.objects.create(
+            user=wallet.user,
+            type='trade',
+            title='Deposit Reversed',
+            body=f'A deposit of ₦{deposit.ngn_amount:,.2f} ({deposit.crypto_amount} {deposit.asset.upper()}) was reversed. Your new balance is ₦{wallet.balance:,.2f}.'
+        )
+    except Exception as e:
+        logger.error(f"Failed to create notification: {e}")
+    
+    # Notify Admins via Telegram
+    telegram_msg = (
+        "\u26a0\ufe0f <b>DEPOSIT REVERSED BY ADMIN</b>\n"
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+        f"\U0001f464 <b>User:</b> {wallet.user.full_name} ({wallet.user.email})\n"
+        f"\U0001f4b5 <b>NGN Reversed:</b> \u20a6{deposit.ngn_amount:,.2f}\n"
+        f"\U0001f4b0 <b>Asset:</b> {deposit.crypto_amount} {deposit.asset.upper()}\n"
+        f"\U0001f4b3 <b>New Balance:</b> \u20a6{wallet.balance:,.2f}\n"
+        f"\u23f0 {timestamp}"
+    )
+    try:
+        TelegramNotifier._send(telegram_msg)
+    except Exception as e:
+        logger.error(f"Failed to send telegram msg: {e}")
+    
+    return DepositReversalSchema(
+        deposit_id=deposit.id,
+        user_email=wallet.user.email,
+        asset=deposit.asset.upper(),
+        crypto_amount=deposit.crypto_amount,
+        ngn_reversed=deposit.ngn_amount,
+        new_balance=wallet.balance,
+        reason="Duplicate transaction reversal",
+        reversed_at=timestamp
+    )

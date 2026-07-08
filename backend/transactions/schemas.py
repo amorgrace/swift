@@ -75,3 +75,13 @@ class AdminWithdrawalSchema(BaseModel):
     created_at: str
 
 
+class DepositReversalSchema(BaseModel):
+    deposit_id: int
+    user_email: str
+    asset: str
+    crypto_amount: Decimal
+    ngn_reversed: Decimal
+    new_balance: Decimal
+    reason: str
+    reversed_at: str
+
