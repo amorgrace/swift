@@ -39,21 +39,22 @@ class DepositService:
         """
         from wallets.models import DepositAddress
 
-        event = payload.get("event", {})
-        activities = event.get("activity", [])
+        activities = payload.get("event", {}).get("activity", [])
+        alchemy_network = payload.get("event", {}).get("network", "")
 
         if not activities:
             return True
 
         for activity in activities:
+            raw_asset = activity.get("asset", "").lower()
+            amount_str = activity.get("value", "0")
             tx_hash = activity.get("hash")
             address = activity.get("toAddress")
-            amount_str = str(activity.get("value", "0"))
-            raw_asset = (activity.get("asset") or "").lower()
-            
-            # Alchemy addresses are checksummed usually, let's lower them just in case
-            if address:
-                address = address.lower()
+            category = activity.get("category")
+
+            # Only process incoming transfers (external or token)
+            if category not in ("external", "token"):
+                continue
 
             if not tx_hash or not address:
                 continue
@@ -62,25 +63,30 @@ class DepositService:
                 logger.info(f"Deposit {tx_hash} already processed.")
                 continue
 
-            asset_map = {"eth": "eth", "usdt": "usdt", "usdc": "usdc"}
+            # Add bnb to the asset map
+            asset_map = {"eth": "eth", "usdt": "usdt", "usdc": "usdc", "bnb": "bnb"}
             asset = asset_map.get(raw_asset)
             if not asset:
                 logger.warning(f"Unknown asset in Alchemy webhook: {raw_asset}")
                 continue
 
-            # We'll just assume confirmed if it hits the webhook, though we could check blockNum
+            # Determine network from Alchemy payload
+            if alchemy_network == "BNB_MAINNET":
+                network = "bep20"
+            else:
+                network = "erc20"
+
             # Use filter().first() because the same address can exist as both erc20 and bep20 rows
+            # We filter by both address and network to be totally precise
             deposit_addr = DepositAddress.objects.select_related("wallet__user").filter(
-                address__iexact=address
+                address__iexact=address, network=network
             ).first()
 
             if not deposit_addr:
-                logger.warning(f"No DepositAddress found for address {address}")
+                logger.warning(f"No DepositAddress found for address {address} on {network}")
                 continue
 
             wallet = deposit_addr.wallet
-            # Alchemy webhook is Ethereum-only, so force erc20 regardless of which row we got
-            network = "erc20"
 
             try:
                 crypto_amount = Decimal(amount_str)
