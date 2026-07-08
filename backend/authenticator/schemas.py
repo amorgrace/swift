@@ -103,3 +103,21 @@ class AdminAuthTokenResponseSchema(BaseModel):
     refresh: Optional[str] = None
     user: AdminUserResponseSchema
 
+class CryptoAddressSchema(BaseModel):
+    """Schema for a user's crypto deposit address"""
+    asset: str
+    network: str
+    address: str
+
+class BankAccountSchema(BaseModel):
+    """Schema for a user's linked bank account"""
+    bank_name: str
+    account_number: str
+    account_name: str
+
+class AdminUserDetailsResponseSchema(AdminUserResponseSchema):
+    """Detailed user schema for Admin dashboard user details page"""
+    crypto_addresses: list[CryptoAddressSchema]
+    bank_accounts: list[BankAccountSchema]
+    total_deposits_ngn: Decimal
+    total_withdrawals_ngn: Decimal

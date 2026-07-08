@@ -15,11 +15,12 @@ from .schemas import (
     ResendVerificationSchema,
     AdminUserResponseSchema,
     AdminAuthTokenResponseSchema,
+    AdminUserDetailsResponseSchema,
 )
 from pydantic import BaseModel
 from typing import Optional
 from ninja import Query
-from django.db.models import Q
+from django.db.models import Q, Sum
 from decimal import Decimal
 from .services import AuthenticationService
 
@@ -326,3 +327,76 @@ def get_all_users(request, filters: UserFilterSchema = Query(...)):
         
     return result
 
+
+@router.get("/admin/users/{user_id}", response=AdminUserDetailsResponseSchema)
+def get_user_details(request, user_id: str):
+    """Admin endpoint to get full details of a specific user."""
+    if not request.user.is_staff:
+        raise HttpError(403, "Permission denied.")
+    
+    try:
+        user = User.objects.select_related('kyc', 'ngn_wallet').get(id=user_id)
+    except User.DoesNotExist:
+        raise HttpError(404, "User not found.")
+        
+    from wallets.models import DepositAddress, BankAccount
+    from transactions.models import Deposit, Withdrawal, DepositStatus, WithdrawalStatus
+    
+    # Get balance
+    balance = Decimal('0.00')
+    if hasattr(user, 'ngn_wallet'):
+        balance = user.ngn_wallet.balance
+        
+    # Get KYC
+    kyc_status = None
+    if hasattr(user, 'kyc'):
+        kyc_status = user.kyc.status
+        
+    # Get crypto addresses
+    crypto_addresses_qs = DepositAddress.objects.filter(wallet__user=user)
+    crypto_addresses = [
+        {
+            "asset": ca.asset,
+            "network": ca.network,
+            "address": ca.address
+        } for ca in crypto_addresses_qs
+    ]
+    
+    # Get bank accounts
+    bank_accounts_qs = BankAccount.objects.filter(user=user)
+    bank_accounts = [
+        {
+            "bank_name": ba.bank_name,
+            "account_number": ba.account_number,
+            "account_name": ba.account_name
+        } for ba in bank_accounts_qs
+    ]
+    
+    # Calculate stats
+    total_deposits = Deposit.objects.filter(
+        wallet__user=user, 
+        status=DepositStatus.CONVERTED
+    ).aggregate(Sum('ngn_amount'))['ngn_amount__sum'] or Decimal('0.00')
+    
+    total_withdrawals = Withdrawal.objects.filter(
+        wallet__user=user, 
+        status=WithdrawalStatus.SUCCESS
+    ).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    
+    return AdminUserDetailsResponseSchema(
+        id=str(user.id),
+        full_name=user.full_name,
+        email=user.email,
+        phone_number=user.phone_number,
+        created_at=user.created_at.isoformat(),
+        updated_at=user.updated_at.isoformat(),
+        last_login=user.last_login.isoformat() if user.last_login else None,
+        kyc_status=kyc_status,
+        ngn_balance=balance,
+        is_staff=user.is_staff,
+        is_active=user.is_active,
+        crypto_addresses=crypto_addresses,
+        bank_accounts=bank_accounts,
+        total_deposits_ngn=total_deposits,
+        total_withdrawals_ngn=total_withdrawals
+    )
