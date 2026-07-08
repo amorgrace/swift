@@ -205,6 +205,16 @@ class WalletService:
                             logger.info(f"Retry subscription succeeded for {existing.address}")
                         else:
                             logger.error(f"Retry Alchemy subscription FAILED for {existing.address}.")
+                    elif existing.network == "bep20":
+                        bep20_webhook_id = os.environ.get("ALCHEMY_BEP20_WEBHOOK_ID")
+                        if bep20_webhook_id:
+                            success = subscribe_to_alchemy(existing.address, bep20_webhook_id)
+                            if success:
+                                existing.tatum_subscription_id = "alchemy_bep20_subscribed"
+                                existing.save(update_fields=["tatum_subscription_id"])
+                                logger.info(f"Retry subscription succeeded for {existing.address}")
+                            else:
+                                logger.error(f"Retry Alchemy subscription FAILED for BEP20 address {existing.address}.")
                     elif existing.network == "bitcoin":
                         webhook_url = f"{settings.BACKEND_URL}/api/webhooks/blockcypher-deposit/"
                         sub_id = subscribe_to_blockcypher(existing.address, webhook_url)
@@ -254,14 +264,16 @@ class WalletService:
                     else:
                         logger.error(f"Alchemy subscription FAILED for ERC20 address {address}. Deposits to this address will NOT be detected!")
                 elif network == "bep20":
-                    # BEP20 is BNB Chain — cannot reuse the Ethereum Alchemy webhook.
-                    # You need a separate Alchemy webhook configured for BNB Chain,
-                    # or a different provider (e.g. a BSC-specific webhook service).
-                    logger.warning(
-                        f"BEP20 address {address} created but NO webhook subscription configured. "
-                        "Set up a BNB Chain Alchemy webhook and add ALCHEMY_BEP20_WEBHOOK_ID to .env, "
-                        "then update this block to call subscribe_to_alchemy with the BEP20 webhook ID."
-                    )
+                    bep20_webhook_id = os.environ.get("ALCHEMY_BEP20_WEBHOOK_ID")
+                    if bep20_webhook_id:
+                        success = subscribe_to_alchemy(address, bep20_webhook_id)
+                        if success:
+                            deposit_address.tatum_subscription_id = "alchemy_bep20_subscribed"
+                            deposit_address.save(update_fields=["tatum_subscription_id"])
+                        else:
+                            logger.error(f"Alchemy subscription FAILED for BEP20 address {address}.")
+                    else:
+                        logger.warning(f"BEP20 address {address} created but NO ALCHEMY_BEP20_WEBHOOK_ID in .env. Skipping subscription.")
                 elif network == "bitcoin":
                     webhook_url = f"{settings.BACKEND_URL}/api/webhooks/blockcypher-deposit/"
                     sub_id = subscribe_to_blockcypher(address, webhook_url)

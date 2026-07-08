@@ -11,9 +11,10 @@ ALCHEMY_WEBHOOK_SECRET = os.environ.get("ALCHEMY_SIGNING_KEY")
 ALCHEMY_WEBHOOK_ID = os.environ.get("ALCHEMY_WEBHOOK_ID")
 
 
-def subscribe_to_alchemy(address: str) -> bool:
+def subscribe_to_alchemy(address: str, webhook_id: str = None) -> bool:
     """Subscribe an address to the Alchemy Address Activity Webhook."""
-    if not ALCHEMY_AUTH_TOKEN or not ALCHEMY_WEBHOOK_ID:
+    target_webhook_id = webhook_id or ALCHEMY_WEBHOOK_ID
+    if not ALCHEMY_AUTH_TOKEN or not target_webhook_id:
         logger.warning("Alchemy tokens missing, skipping subscription.")
         return False
         
@@ -24,7 +25,7 @@ def subscribe_to_alchemy(address: str) -> bool:
         "Content-Type": "application/json"
     }
     payload = {
-        "webhook_id": ALCHEMY_WEBHOOK_ID,
+        "webhook_id": target_webhook_id,
         "addresses_to_add": [address],
         "addresses_to_remove": []
     }
