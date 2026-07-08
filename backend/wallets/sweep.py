@@ -174,7 +174,8 @@ def _ensure_gas(w3, sub_address: str, asset: str, network: str) -> None:
         "chainId": w3.eth.chain_id,
     }
     signed = master_account.sign_transaction(tx)
-    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    raw_tx = getattr(signed, 'rawTransaction', getattr(signed, 'raw_transaction', None))
+    tx_hash = w3.eth.send_raw_transaction(raw_tx)
     # Wait for gas top-up to land before proceeding
     w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
     logger.info(f"[EVM Sweep] Gas top-up confirmed for {sub_address}")
@@ -273,7 +274,8 @@ def sweep_evm_addresses(deposit_entries: List[Dict], asset: str, network: str) -
                 total_swept_wei += balance
 
             signed = sub_account.sign_transaction(tx)
-            tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+            raw_tx = getattr(signed, 'rawTransaction', getattr(signed, 'raw_transaction', None))
+            tx_hash = w3.eth.send_raw_transaction(raw_tx)
             tx_hash_hex = tx_hash.hex()
             tx_hashes.append(tx_hash_hex)
             logger.info(f"[EVM Sweep] Broadcast tx for {sub_address}: {tx_hash_hex}")
