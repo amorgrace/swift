@@ -139,7 +139,7 @@ class DepositService:
         """
         Atomically credit a wallet for a crypto deposit.
 
-        Idempotency is enforced at the DB level: `quidax_reference` has a
+        Idempotency is enforced at the DB level: `tx_hash` has a
         unique constraint, so a duplicate tx_hash will raise IntegrityError
         which we catch here and silently skip.  This is safe against:
           - Webhook provider retries
@@ -150,7 +150,7 @@ class DepositService:
             with transaction.atomic():
                 # Re-check inside the atomic block so concurrent requests
                 # cannot both slip past the guard before either commits.
-                if Deposit.objects.filter(quidax_reference=tx_hash).exists():
+                if Deposit.objects.filter(tx_hash=tx_hash).exists():
                     logger.info(f"[idempotency] Deposit {tx_hash} already recorded — skipping.")
                     return
 
@@ -169,7 +169,7 @@ class DepositService:
                     margin_applied=margin,
                     ngn_usd_rate=ngn_usd_rate,
                     ngn_amount=ngn_amount,
-                    quidax_reference=tx_hash,
+                    tx_hash=tx_hash,
                     status=DepositStatus.CONVERTED,
                 )
 
@@ -186,7 +186,7 @@ class DepositService:
                 )
 
         except IntegrityError:
-            # The unique constraint on quidax_reference fired — a concurrent
+            # The unique constraint on tx_hash fired — a concurrent
             # request already inserted this tx_hash.  Nothing to do.
             logger.warning(f"[idempotency] IntegrityError for tx_hash {tx_hash} — duplicate skipped.")
             return

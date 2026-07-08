@@ -78,10 +78,10 @@ class Deposit(models.Model):
         decimal_places=2,
         help_text='Final NGN amount credited to wallet',
     )
-    quidax_reference = models.CharField(
+    tx_hash = models.CharField(
         max_length=255,
         unique=True,
-        help_text='Quidax transaction ID for idempotency',
+        help_text='On-chain transaction hash — used as idempotency key to prevent double-crediting',
     )
     status = models.CharField(
         max_length=20,
