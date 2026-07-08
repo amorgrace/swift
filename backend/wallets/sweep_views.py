@@ -133,7 +133,7 @@ def request_sweep_otp(request, payload: RequestOtpSchema):
         }
     )
 
-    return {"message": f"OTP successfully sent to {owner_email}"}
+    return {"message": f"OTP successfully sent to {to_email}"}
 
 
 @router.post("/sweep/execute", response={200: dict})
