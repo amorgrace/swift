@@ -105,7 +105,8 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             coin=coin,
             network=network,
             crypto_amount=crypto_amount,
-            rate=rate
+            rate=rate,
+            deposit_id=t.related_deposit_id if t.type == TransactionType.DEPOSIT else None
         ))
 
     return results
@@ -164,6 +165,7 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
             network=network,
             crypto_amount=crypto_amount,
             rate=rate,
+            deposit_id=t.related_deposit_id if t.type == TransactionType.DEPOSIT else None,
             user_email=t.wallet.user.email,
             user_full_name=t.wallet.user.full_name
         ))
