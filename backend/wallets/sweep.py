@@ -313,9 +313,9 @@ def fetch_pending_balances() -> List[Dict]:
         for addr in addr_list:
             try:
                 if network == "bitcoin":
-                    from bit import Key
-                    key = Key(addr.address)
-                    bal = Decimal(str(key.get_balance("btc")))
+                    from bit.network import NetworkAPI
+                    satoshis = NetworkAPI.get_balance(addr.address)
+                    bal = Decimal(satoshis) / Decimal(100000000)
                 else:
                     w3 = _get_web3(network)
                     raw = _get_evm_balance(w3, addr.address, asset, network)

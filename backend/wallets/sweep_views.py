@@ -201,6 +201,12 @@ def execute_sweep(request, payload: ConfirmSweepSchema):
             result = sweep_evm_addresses(target["entries"], payload.asset.lower(), payload.network.lower())
             tx_hash = ", ".join(result.get("tx_hashes", []))
 
+        if not tx_hash:
+            sweep.status = SweepStatus.FAILED
+            sweep.error_message = "Balances are too low to cover network gas fees."
+            sweep.save(update_fields=["status", "error_message", "updated_at"])
+            raise HttpError(400, "Sweep aborted: The balances in the sub-wallets are too small to cover the network gas fees.")
+
         sweep.status = SweepStatus.BROADCAST
         sweep.tx_hash = tx_hash
         sweep.save(update_fields=["status", "tx_hash", "updated_at"])
