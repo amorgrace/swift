@@ -78,7 +78,8 @@ def _require_sweep_owner(request):
 @router.get("/sweep/balances", response=List[SweepBalanceItem])
 def get_sweep_balances(request):
     """List all unswept on-chain balances across all user deposit addresses."""
-    _require_sweep_owner(request)
+    if not request.user.is_staff:
+        raise HttpError(403, "Admin access required.")
     try:
         from wallets.sweep import fetch_active_subwallet_balances
         results = fetch_active_subwallet_balances()
