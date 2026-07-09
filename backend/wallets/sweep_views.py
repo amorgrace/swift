@@ -23,12 +23,20 @@ class ConfirmSweepSchema(Schema):
     otp: str  # admin sweep OTP
 
 
+class SubwalletEntry(Schema):
+    address: str
+    index: int | None
+    balance: float
+    user_email: str
+
+
 class SweepBalanceItem(Schema):
     asset: str
     network: str
     total_balance: float
     address_count: int
     users: list[str]
+    entries: list[SubwalletEntry]
 
 
 class SweepHistoryItem(Schema):
@@ -72,15 +80,16 @@ def get_sweep_balances(request):
     """List all unswept on-chain balances across all user deposit addresses."""
     _require_sweep_owner(request)
     try:
-        from wallets.sweep import fetch_pending_balances
-        results = fetch_pending_balances()
+        from wallets.sweep import fetch_active_subwallet_balances
+        results = fetch_active_subwallet_balances()
         return [
             SweepBalanceItem(
                 asset=r["asset"],
                 network=r["network"],
                 total_balance=r["total_balance"],
                 address_count=r["address_count"],
-                users=[e["user_email"] for e in r["entries"]]
+                users=[e["user_email"] for e in r["entries"]],
+                entries=r["entries"]
             )
             for r in results
         ]

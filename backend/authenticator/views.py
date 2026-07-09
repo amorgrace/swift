@@ -70,6 +70,9 @@ def verify_email(request, payload: VerifyEmailSchema):
                 created_at=user.created_at.isoformat(),
                 updated_at=user.updated_at.isoformat(),
                 last_login=user.last_login.isoformat() if user.last_login else None,
+                is_frozen=user.is_frozen,
+                frozen_reason=user.frozen_reason or None,
+                frozen_at=user.frozen_at.isoformat() if user.frozen_at else None,
             )
             
             from notifications.models import Notification
@@ -111,6 +114,9 @@ def login(request, payload: UserLoginSchema):
 			created_at=user.created_at.isoformat(),
 			updated_at=user.updated_at.isoformat(),
 			last_login=user.last_login.isoformat() if user.last_login else None,
+            is_frozen=user.is_frozen,
+            frozen_reason=user.frozen_reason or None,
+            frozen_at=user.frozen_at.isoformat() if user.frozen_at else None,
 		)
 
 		return AuthTokenResponseSchema(
@@ -180,6 +186,9 @@ def get_current_user(request):
 		created_at=request.user.created_at.isoformat(),
 		updated_at=request.user.updated_at.isoformat(),
 		last_login=request.user.last_login.isoformat() if request.user.last_login else None,
+        is_frozen=request.user.is_frozen,
+        frozen_reason=request.user.frozen_reason or None,
+        frozen_at=request.user.frozen_at.isoformat() if request.user.frozen_at else None,
 	)
 
 @router.post("/forget-password", response={200: dict}, auth=None)

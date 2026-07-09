@@ -34,6 +34,9 @@ class UserResponseSchema(BaseModel):
     created_at: str
     updated_at: str
     last_login: Optional[str] = None
+    is_frozen: bool = False
+    frozen_reason: Optional[str] = None
+    frozen_at: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -96,9 +99,6 @@ class AdminUserResponseSchema(UserResponseSchema):
     ngn_balance: Decimal
     is_staff: bool
     is_active: bool
-    is_frozen: bool = False
-    frozen_reason: Optional[str] = None
-    frozen_at: Optional[str] = None
 
 class AdminAuthTokenResponseSchema(BaseModel):
     """Schema for admin authentication token response"""

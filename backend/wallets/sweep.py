@@ -345,3 +345,64 @@ def fetch_pending_balances() -> List[Dict]:
             })
 
     return results
+
+def fetch_active_subwallet_balances() -> List[Dict]:
+    """
+    Fetch live on-chain balances for deposit addresses that have actually received 
+    crypto previously (based on the Deposit table).
+    This avoids querying the blockchain for completely unused generated addresses.
+    """
+    from wallets.models import DepositAddress, NetworkChoices
+    from django.db.models import F
+
+    results = []
+    # Only get addresses where the wallet has a deposit of the same asset and network
+    addresses = DepositAddress.objects.filter(
+        wallet__deposits__asset=F('asset'),
+        wallet__deposits__network=F('network')
+    ).select_related("wallet__user").distinct()
+
+    # Group by (asset, network)
+    groups: Dict[tuple, List] = {}
+    for addr in addresses:
+        key = (addr.asset, addr.network)
+        groups.setdefault(key, []).append(addr)
+
+    for (asset, network), addr_list in groups.items():
+        total = Decimal("0")
+        entries = []
+
+        for addr in addr_list:
+            try:
+                if network == "bitcoin":
+                    from bit.network import NetworkAPI
+                    satoshis = NetworkAPI.get_balance(addr.address)
+                    bal = Decimal(satoshis) / Decimal(100000000)
+                else:
+                    w3 = _get_web3(network)
+                    raw = _get_evm_balance(w3, addr.address, asset, network)
+                    decimals = 18 if asset in ("eth", "bnb") else 6
+                    bal = Decimal(raw) / Decimal(10 ** decimals)
+
+                if bal > 0:
+                    total += bal
+                    entries.append({
+                        "address": addr.address,
+                        "index": addr.derivation_index,
+                        "balance": float(bal),
+                        "user_email": addr.wallet.user.email,
+                    })
+            except Exception as e:
+                logger.error(f"[Balance Fetch] {addr.address}: {e}")
+
+        if total > 0:
+            results.append({
+                "asset": asset.upper(),
+                "network": network,
+                "total_balance": float(total),
+                "address_count": len(entries),
+                "entries": entries,
+            })
+
+    return results
+
