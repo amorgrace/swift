@@ -1,5 +1,10 @@
 from pydantic import BaseModel
 from decimal import Decimal
+from typing import List, Optional
+
+class MonthlyVolume(BaseModel):
+    month: str
+    amount: Decimal
 
 class DashboardStatsSchema(BaseModel):
     totalWithdrawn: Decimal
@@ -13,3 +18,4 @@ class AdminDashboardStatsSchema(BaseModel):
     total_system_deposits: Decimal
     total_system_withdrawals: Decimal
     btc_address_count: int
+    monthly_volume: Optional[List[MonthlyVolume]] = None

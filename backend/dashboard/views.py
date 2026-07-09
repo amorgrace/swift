@@ -70,11 +70,36 @@ def get_admin_dashboard_stats(request):
     
     btc_address_count = DepositAddress.objects.filter(network=NetworkChoices.BITCOIN).count()
     
+    import calendar
+    from django.utils import timezone
+    
+    now = timezone.now()
+    monthly_volume = []
+    
+    for i in range(5, -1, -1):
+        y, m = now.year, now.month - i
+        if m <= 0:
+            y -= 1
+            m += 12
+            
+        month_str = calendar.month_abbr[m]
+        amount = Deposit.objects.filter(
+            status=DepositStatus.CONVERTED,
+            created_at__year=y,
+            created_at__month=m
+        ).aggregate(Sum('ngn_amount'))['ngn_amount__sum'] or Decimal('0.00')
+        
+        monthly_volume.append({
+            "month": month_str,
+            "amount": amount
+        })
+
     return AdminDashboardStatsSchema(
         total_users=total_users,
         total_kyc_pending=total_kyc_pending,
         total_system_ngn_balance=total_ngn_balance,
         total_system_deposits=total_system_deposits,
         total_system_withdrawals=total_system_withdrawals,
-        btc_address_count=btc_address_count
+        btc_address_count=btc_address_count,
+        monthly_volume=monthly_volume
     )
