@@ -71,7 +71,7 @@ def derive_btc_private_key(index: int):
     wallet = HDWallet(symbol=BTC)
     wallet.from_xprivate_key(BTC_XPRIV)
     wallet.from_path(f"m/0/{index}")
-    return wallet.private_key()
+    return wallet.wif()
 
 
 def sweep_btc_addresses(deposit_entries: List[Dict]) -> Dict:
@@ -107,7 +107,7 @@ def sweep_btc_addresses(deposit_entries: List[Dict]) -> Dict:
             else:
                 logger.info(f"[BTC Sweep] Skipping {address} — dust balance ({balance} BTC)")
         except Exception as e:
-            logger.error(f"[BTC Sweep] Failed for {address} (index={index}): {e}")
+            logger.exception(f"[BTC Sweep] Failed for {address} (index={index}): {e}")
 
     if not tx_hashes:
         return {"tx_hashes": [], "tx_hash": "", "total_swept": Decimal("0"), "gas_cost": Decimal("0")}
