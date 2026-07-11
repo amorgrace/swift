@@ -327,7 +327,10 @@ def fetch_pending_balances() -> List[Dict]:
                 else:
                     w3 = _get_web3(network)
                     raw = _get_evm_balance(w3, addr.address, asset, network)
-                    decimals = 18 if asset in ("eth", "bnb") else 6  # USDT/USDC = 6
+                    if asset in ("eth", "bnb") or (asset == "usdt" and network == "bep20"):
+                        decimals = 18
+                    else:
+                        decimals = 6
                     bal = Decimal(raw) / Decimal(10 ** decimals)
 
                 if bal > 0:
@@ -387,7 +390,10 @@ def fetch_active_subwallet_balances() -> List[Dict]:
                 else:
                     w3 = _get_web3(network)
                     raw = _get_evm_balance(w3, addr.address, asset, network)
-                    decimals = 18 if asset in ("eth", "bnb") else 6
+                    if asset in ("eth", "bnb") or (asset == "usdt" and network == "bep20"):
+                        decimals = 18
+                    else:
+                        decimals = 6
                     bal = Decimal(raw) / Decimal(10 ** decimals)
 
                 if bal > 0:
