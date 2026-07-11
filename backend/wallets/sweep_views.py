@@ -168,12 +168,12 @@ def execute_sweep(request, payload: ConfirmSweepSchema):
     cache.delete(cache_key)
 
     # 2. Fetch live balances for the requested asset/network
-    from wallets.sweep import fetch_pending_balances, sweep_btc_addresses, sweep_evm_addresses
+    from wallets.sweep import fetch_active_subwallet_balances, sweep_btc_addresses, sweep_evm_addresses
     from wallets.models import SweepRequest, SweepStatus
     import os
     from decimal import Decimal
 
-    all_balances = fetch_pending_balances()
+    all_balances = fetch_active_subwallet_balances()
     target = next(
         (b for b in all_balances
          if b["asset"].lower() == payload.asset.lower()

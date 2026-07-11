@@ -87,18 +87,27 @@ def sweep_btc_addresses(deposit_entries: List[Dict]) -> Dict:
 
     tx_hashes = []
     for entry in deposit_entries:
+        index = entry.get("index")
+        address = entry.get("address", "?")
+
+        # Skip if derivation index is missing — we cannot sign without it
+        if index is None:
+            logger.warning(f"[BTC Sweep] Skipping {address} — no derivation index stored")
+            continue
+
         try:
-            wif = derive_btc_private_key(entry["index"])
+            wif = derive_btc_private_key(index)
             key = PrivateKey(wif)
             balance = key.get_balance("btc")
             if float(balance) > 0.000015:  # min dust threshold
-                tx_hash = key.send([(BTC_MASTER_ADDRESS, balance, 'btc')], fee=None)
+                # Empty outputs + leftover=master → bit sends everything minus auto-calculated fee
+                tx_hash = key.send([], leftover=BTC_MASTER_ADDRESS, combine=True)
                 tx_hashes.append(tx_hash)
-                logger.info(f"[BTC Sweep] Swept {balance} BTC from {entry['address']} to {BTC_MASTER_ADDRESS}")
+                logger.info(f"[BTC Sweep] Swept {balance} BTC from {address}: {tx_hash}")
             else:
-                logger.info(f"[BTC Sweep] Skipping {entry['address']} — dust balance")
+                logger.info(f"[BTC Sweep] Skipping {address} — dust balance ({balance} BTC)")
         except Exception as e:
-            logger.error(f"[BTC Sweep] Key derivation failed for index {entry['index']}: {e}")
+            logger.error(f"[BTC Sweep] Failed for {address} (index={index}): {e}")
 
     if not tx_hashes:
         return {"tx_hashes": [], "tx_hash": "", "total_swept": Decimal("0"), "gas_cost": Decimal("0")}
