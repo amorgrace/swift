@@ -14,5 +14,5 @@ django-ratelimit==4.1.0
 hdwallet==2.2.1
 celery[redis]>=5.3
 django-redis>=5.4
-bit==0.8.0
+bitcoinlib==0.7.9
 web3==6.20.3

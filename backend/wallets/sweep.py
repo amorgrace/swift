@@ -78,9 +78,11 @@ def sweep_btc_addresses(deposit_entries: List[Dict]) -> Dict:
     """
     Sweep BTC from one or more deposit addresses into the master BTC wallet.
     deposit_entries: list of {'address': str, 'index': int}
-    Returns: {'tx_hash': str, 'total_swept': Decimal, 'gas_cost': Decimal}
+    Returns: {'tx_hashes': list, 'tx_hash': str, 'total_swept': Decimal, 'gas_cost': Decimal, 'addresses': list}
     """
-    from bit import PrivateKey
+    from bitcoinlib.wallets import wallet_create_or_open, wallet_delete_if_exists, WalletError
+    from bitcoinlib.transactions import TransactionError
+    import uuid
 
     if not BTC_MASTER_ADDRESS:
         raise ValueError("MASTER_BTC_ADDRESS is not configured.")
@@ -95,19 +97,35 @@ def sweep_btc_addresses(deposit_entries: List[Dict]) -> Dict:
             logger.warning(f"[BTC Sweep] Skipping {address} — no derivation index stored")
             continue
 
+        wallet_name = f"sweep_{uuid.uuid4().hex[:8]}"
         try:
             wif = derive_btc_private_key(index)
-            key = PrivateKey(wif)
-            balance = key.get_balance("btc")
-            if float(balance) > 0.000015:  # min dust threshold
-                # Empty outputs + leftover=master → bit sends everything minus auto-calculated fee
-                tx_hash = key.send([], leftover=BTC_MASTER_ADDRESS, combine=True)
-                tx_hashes.append(tx_hash)
-                logger.info(f"[BTC Sweep] Swept {balance} BTC from {address}: {tx_hash}")
+            # Create a unique ephemeral wallet for this sweep
+            w = wallet_create_or_open(wallet_name, keys=wif, network='bitcoin', witness_type='p2sh-segwit')
+            w.utxos_update()
+            
+            balance_sats = w.balance()
+            if balance_sats > 0:
+                balance_btc = Decimal(balance_sats) / Decimal(100000000)
+                try:
+                    # sweep() automatically calculates fee and sends the remainder
+                    tx = w.sweep(BTC_MASTER_ADDRESS)
+                    tx_hash = tx.txid
+                    tx_hashes.append(tx_hash)
+                    logger.info(f"[BTC Sweep] Swept {balance_btc} BTC from {address}: {tx_hash}")
+                except TransactionError as e:
+                    logger.warning(f"[BTC Sweep] Skipping {address} — Insufficient funds/dust or tx error: {e}")
+                except Exception as e:
+                    logger.warning(f"[BTC Sweep] Skipping {address} — Error during sweep: {e}")
             else:
-                logger.info(f"[BTC Sweep] Skipping {address} — dust balance ({balance} BTC)")
+                logger.info(f"[BTC Sweep] Skipping {address} — zero balance")
         except Exception as e:
             logger.exception(f"[BTC Sweep] Failed for {address} (index={index}): {e}")
+        finally:
+            try:
+                wallet_delete_if_exists(wallet_name)
+            except Exception:
+                pass
 
     if not tx_hashes:
         return {"tx_hashes": [], "tx_hash": "", "total_swept": Decimal("0"), "gas_cost": Decimal("0")}
@@ -321,8 +339,9 @@ def fetch_pending_balances() -> List[Dict]:
         for addr in addr_list:
             try:
                 if network == "bitcoin":
-                    from bit.network import NetworkAPI
-                    satoshis = NetworkAPI.get_balance(addr.address)
+                    from bitcoinlib.services.services import Service
+                    srv = Service(network='bitcoin')
+                    satoshis = srv.getbalance(addr.address)
                     bal = Decimal(satoshis) / Decimal(100000000)
                 else:
                     w3 = _get_web3(network)
@@ -384,8 +403,9 @@ def fetch_active_subwallet_balances() -> List[Dict]:
         for addr in addr_list:
             try:
                 if network == "bitcoin":
-                    from bit.network import NetworkAPI
-                    satoshis = NetworkAPI.get_balance(addr.address)
+                    from bitcoinlib.services.services import Service
+                    srv = Service(network='bitcoin')
+                    satoshis = srv.getbalance(addr.address)
                     bal = Decimal(satoshis) / Decimal(100000000)
                 else:
                     w3 = _get_web3(network)
