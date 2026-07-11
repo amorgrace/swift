@@ -53,6 +53,8 @@ class NGNWallet(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = models.Manager()
+
     class Meta:
         db_table = 'ngn_wallets'
         verbose_name = 'NGN Wallet'
@@ -115,6 +117,8 @@ class DepositAddress(models.Model):
     tatum_subscription_id = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = models.Manager()
+
     class Meta:
         db_table = 'deposit_addresses'
         verbose_name = 'Deposit Address'
@@ -152,6 +156,8 @@ class BankAccount(models.Model):
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = models.Manager()
+
     class Meta:
         db_table = 'bank_accounts'
         verbose_name = 'Bank Account'
@@ -176,6 +182,8 @@ class AdminProfile(models.Model):
     pin_is_set = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = models.Manager()
 
     class Meta:
         db_table = 'admin_profiles'
@@ -230,6 +238,8 @@ class SweepRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = models.Manager()
 
     class Meta:
         db_table = 'sweep_requests'

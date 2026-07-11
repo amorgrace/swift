@@ -91,6 +91,8 @@ class Deposit(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = models.Manager()
+
     class Meta:
         db_table = 'deposits'
         verbose_name = 'Deposit'
@@ -148,6 +150,8 @@ class Withdrawal(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = models.Manager()
+
     class Meta:
         db_table = 'withdrawals'
         verbose_name = 'Withdrawal'
@@ -196,6 +200,8 @@ class Transaction(models.Model):
         on_delete=models.SET_NULL,
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = models.Manager()
 
     class Meta:
         db_table = 'transactions_log'
