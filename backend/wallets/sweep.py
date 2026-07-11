@@ -85,31 +85,28 @@ def sweep_btc_addresses(deposit_entries: List[Dict]) -> Dict:
     if not BTC_MASTER_ADDRESS:
         raise ValueError("MASTER_BTC_ADDRESS is not configured.")
 
-    keys = []
+    tx_hashes = []
     for entry in deposit_entries:
         try:
             wif = derive_btc_private_key(entry["index"])
             key = PrivateKey(wif)
             balance = key.get_balance("btc")
             if float(balance) > 0.000015:  # min dust threshold
-                keys.append(key)
-                logger.info(f"[BTC Sweep] Address {entry['address']} has {balance} BTC")
+                tx_hash = key.send([(BTC_MASTER_ADDRESS, balance, 'btc')], fee=None)
+                tx_hashes.append(tx_hash)
+                logger.info(f"[BTC Sweep] Swept {balance} BTC from {entry['address']} to {BTC_MASTER_ADDRESS}")
             else:
                 logger.info(f"[BTC Sweep] Skipping {entry['address']} — dust balance")
         except Exception as e:
             logger.error(f"[BTC Sweep] Key derivation failed for index {entry['index']}: {e}")
 
-    if not keys:
-        return {"tx_hash": "", "total_swept": Decimal("0"), "gas_cost": Decimal("0")}
-
-    # Consolidate: send everything from all keys to master, fees auto-deducted
-    # bit handles fee calculation and deduction from sweep amount automatically
-    tx_hash = PrivateKey.sweep(keys, BTC_MASTER_ADDRESS)
-    logger.info(f"[BTC Sweep] Broadcast tx: {tx_hash}")
+    if not tx_hashes:
+        return {"tx_hashes": [], "tx_hash": "", "total_swept": Decimal("0"), "gas_cost": Decimal("0")}
 
     return {
-        "tx_hash": tx_hash,
-        "total_swept": Decimal("0"),   # will be updated after confirmation
+        "tx_hashes": tx_hashes,
+        "tx_hash": tx_hashes[0],       # backward-compat field
+        "total_swept": Decimal("0"),   # updated after on-chain confirmation
         "gas_cost": Decimal("0"),
         "addresses": [e["address"] for e in deposit_entries],
     }

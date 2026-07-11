@@ -34,6 +34,5 @@ newemails.html
 # COMMIT: 28e356a82a6c0226736f903f28ea8e63b49fc161
 
 # Utility scripts
-credit_missed_deposit.py
 find_missed_deposits.py
-resubscribe_all_addresses.py
+find_missed_btc_deposits.py
