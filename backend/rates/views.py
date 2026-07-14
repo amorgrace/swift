@@ -238,7 +238,7 @@ def get_my_giftcard_transactions(request):
 
 # ── Admin Gift Card Transaction Endpoints ──────────────────────────────────────
 
-@router.get('/admin/transactions', response=list[AdminGiftCardTransactionOutSchema])
+@router.get('/admin/transactions/', response=list[AdminGiftCardTransactionOutSchema])
 def admin_list_transactions(request, status: str = ""):
     """List all gift card transactions. Filter by status: pending|approved|rejected."""
     if not request.user.is_staff:
@@ -249,7 +249,7 @@ def admin_list_transactions(request, status: str = ""):
     return qs
 
 
-@router.get('/admin/transactions/{tx_id}', response=AdminGiftCardTransactionOutSchema)
+@router.get('/admin/transactions/{tx_id}/', response=AdminGiftCardTransactionOutSchema)
 def admin_get_transaction(request, tx_id: int):
     """Get a single gift card transaction (Admin only)."""
     if not request.user.is_staff:
@@ -261,7 +261,7 @@ def admin_get_transaction(request, tx_id: int):
     return tx
 
 
-@router.post('/admin/transactions/{tx_id}/approve')
+@router.post('/admin/transactions/{tx_id}/approve/')
 def admin_approve_transaction(request, tx_id: int):
     """
     Approve a gift card transaction (Admin only).
@@ -362,7 +362,7 @@ def admin_approve_transaction(request, tx_id: int):
     return {"success": True, "reference": tx.reference, "ngn_credited": str(tx.ngn_payout)}
 
 
-@router.post('/admin/transactions/{tx_id}/reject')
+@router.post('/admin/transactions/{tx_id}/reject/')
 def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     """
     Reject a gift card transaction with a predefined reason (Admin only).
@@ -448,7 +448,7 @@ def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     return {"success": True, "reference": tx.reference, "reason": reason.label}
 
 
-@router.get('/admin/rejection-reasons', response=list[RejectionReasonSchema])
+@router.get('/admin/rejection-reasons/', response=list[RejectionReasonSchema])
 def admin_list_rejection_reasons(request):
     """Get all active rejection reasons for the admin dropdown."""
     if not request.user.is_staff:
