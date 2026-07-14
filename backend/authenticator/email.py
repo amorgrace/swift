@@ -239,6 +239,78 @@ def send_withdrawal_failed_email(user, amount: str, bank_name: str) -> bool:
     )
 
 # -------------------------------------------------------------------
+# Gift Card email helpers
+# -------------------------------------------------------------------
+
+def send_admin_giftcard_pending_email(admin_email: str, admin_name: str, user_email: str, brand: str,
+                                      currency_symbol: str, denomination: str, ngn_payout: str,
+                                      reference: str) -> bool:
+    """Send an email to admin when a new gift card is submitted."""
+    from datetime import datetime
+    return send_email(
+        to_email=admin_email,
+        to_name=admin_name,
+        subject=f"SwiftTrade Admin – New Gift Card Submission ({reference})",
+        template_name="emails/admin_giftcard_pending.html",
+        context={
+            "admin_name": admin_name,
+            "brand": brand,
+            "currency_symbol": currency_symbol,
+            "denomination": denomination,
+            "ngn_payout": ngn_payout,
+            "reference": reference,
+            "details": [
+                {"label": "User", "value": user_email},
+                {"label": "Brand", "value": brand},
+                {"label": "Denomination", "value": f"{currency_symbol}{denomination}"},
+                {"label": "Reference", "value": reference},
+                {"label": "Time", "value": datetime.now().strftime("%B %d, %Y at %I:%M %p UTC")},
+            ],
+        },
+    )
+
+
+def send_giftcard_approved_email(user, brand: str, currency_symbol: str, denomination: str,
+                                  ngn_payout: str, reference: str) -> bool:
+    """Send an email to the user when their gift card is approved."""
+    from datetime import datetime
+    return send_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        subject=f"SwiftTrade – Gift Card Approved ✅ ({reference})",
+        template_name="emails/giftcard_approved.html",
+        context={
+            "full_name": user.full_name,
+            "brand": brand,
+            "currency_symbol": currency_symbol,
+            "denomination": denomination,
+            "ngn_payout": ngn_payout,
+            "reference": reference,
+            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p UTC"),
+        },
+    )
+
+
+def send_giftcard_rejected_email(user, brand: str, currency_symbol: str, denomination: str,
+                                   reference: str, reason: str) -> bool:
+    """Send an email to the user when their gift card is rejected."""
+    return send_email(
+        to_email=user.email,
+        to_name=user.full_name,
+        subject=f"SwiftTrade – Gift Card Not Accepted ({reference})",
+        template_name="emails/giftcard_rejected.html",
+        context={
+            "full_name": user.full_name,
+            "brand": brand,
+            "currency_symbol": currency_symbol,
+            "denomination": denomination,
+            "reference": reference,
+            "reason": reason,
+        },
+    )
+
+
+# -------------------------------------------------------------------
 # KYC email helpers
 # -------------------------------------------------------------------
 
