@@ -213,6 +213,17 @@ def admin_approve_transaction(request, tx_id: int):
         tx.reviewed_at = timezone.now()
         tx.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'updated_at'])
 
+        # Create a unified Transaction for user history
+        from transactions.models import Transaction, TransactionType
+        Transaction.objects.create(
+            wallet=wallet,
+            type=TransactionType.DEPOSIT,
+            amount=Decimal(str(tx.ngn_payout)),
+            description=f"Trade {tx.brand} {tx.currency_symbol}{tx.denomination} Gift Card",
+            status='success',
+            related_giftcard=tx
+        )
+
         # Fire in-app notification
         Notification.objects.create(
             user=tx.user,

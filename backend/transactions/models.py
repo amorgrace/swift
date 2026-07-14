@@ -199,6 +199,12 @@ class Transaction(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
     )
+    related_giftcard = models.ForeignKey(
+        'rates.GiftCardTransaction',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = models.Manager()

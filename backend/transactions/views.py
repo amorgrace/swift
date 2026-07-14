@@ -64,7 +64,8 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
 
     qs = Transaction.objects.filter(wallet=wallet).select_related(
         'related_deposit',
-        'related_withdrawal__bank_account'
+        'related_withdrawal__bank_account',
+        'related_giftcard'
     ).order_by('-created_at')
     
     if filters.type:
@@ -78,6 +79,8 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
         coin = None
         network = None
         crypto_amount = None
+        rate = None
+        deposit_id = None
         
         if t.type == TransactionType.DEPOSIT and t.related_deposit:
             d = t.related_deposit
@@ -87,12 +90,18 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             # Prefer the user-friendly NGN/USD rate (e.g. 1370) stored at trade time.
             # Fall back to rate_applied (per-coin NGN rate) for older records.
             rate = d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied
+            deposit_id = t.related_deposit_id
+        elif t.type == TransactionType.DEPOSIT and hasattr(t, 'related_giftcard') and t.related_giftcard:
+            g = t.related_giftcard
+            coin = g.brand
+            network = g.country_code
+            crypto_amount = g.denomination
+            rate = g.rate_applied
         elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
             w = t.related_withdrawal
             acc_num = w.bank_account.account_number
             masked = acc_num[-4:] if len(acc_num) >= 4 else acc_num
             bank = f"{w.bank_account.bank_name} ••{masked}"
-            rate = None
             
         results.append(TransactionSchema(
             id=t.id,
@@ -107,9 +116,8 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             network=network,
             crypto_amount=crypto_amount,
             rate=rate,
-            deposit_id=t.related_deposit_id if t.type == TransactionType.DEPOSIT else None
+            deposit_id=deposit_id
         ))
-
     return results
 
 
@@ -123,7 +131,8 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
     qs = Transaction.objects.select_related(
         'wallet__user',
         'related_deposit',
-        'related_withdrawal__bank_account'
+        'related_withdrawal__bank_account',
+        'related_giftcard'
     ).order_by('-created_at')
     
     if filters.type:
@@ -140,6 +149,8 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
         coin = None
         network = None
         crypto_amount = None
+        rate = None
+        deposit_id = None
         
         if t.type == TransactionType.DEPOSIT and t.related_deposit:
             d = t.related_deposit
@@ -149,19 +160,25 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
             # Prefer the user-friendly NGN/USD rate (e.g. 1370) stored at trade time.
             # Fall back to rate_applied (per-coin NGN rate) for older records.
             rate = d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied
+            deposit_id = t.related_deposit_id
+        elif t.type == TransactionType.DEPOSIT and hasattr(t, 'related_giftcard') and t.related_giftcard:
+            g = t.related_giftcard
+            coin = g.brand
+            network = g.country_code
+            crypto_amount = g.denomination
+            rate = g.rate_applied
         elif t.type == TransactionType.WITHDRAWAL and t.related_withdrawal:
             w = t.related_withdrawal
             acc_num = w.bank_account.account_number
             masked = acc_num[-4:] if len(acc_num) >= 4 else acc_num
             bank = f"{w.bank_account.bank_name} ••{masked}"
-            rate = None
             
         results.append(AdminTransactionSchema(
             id=t.id,
             type=mapped_type,
             amount=t.amount,
             description=t.description,
-            status=t.status.lower(),
+            status=t.status.lower(),  # Ensure status is lowercase for frontend
             created_at=t.created_at.isoformat(),
             ref=t.reference,
             bank=bank,
@@ -169,11 +186,10 @@ def get_all_transactions_admin(request, filters: TransactionFilterSchema = Query
             network=network,
             crypto_amount=crypto_amount,
             rate=rate,
-            deposit_id=t.related_deposit_id if t.type == TransactionType.DEPOSIT else None,
+            deposit_id=deposit_id,
             user_email=t.wallet.user.email,
-            user_full_name=t.wallet.user.full_name
+            user_full_name=f"{t.wallet.user.first_name} {t.wallet.user.last_name}".strip()
         ))
-
     return results
 
 
