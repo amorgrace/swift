@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_DOWN
+
 from ninja import Router
 from ninja.errors import HttpError
 from django_ratelimit.decorators import ratelimit
