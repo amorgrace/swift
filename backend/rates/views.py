@@ -175,29 +175,33 @@ def submit_giftcard_sell(request, payload: GiftCardTransactionSubmitSchema):
         f"🔗 <b>Ref:</b> {tx.reference}\n\n"
         f"Please review in the Admin Panel."
     )
-    send_telegram_task.delay(admin_msg)
-
-    admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@swiftradeapp.com')
-    send_email_task.delay(
-        to_email=admin_email,
-        to_name='SwiftTrade Admin',
-        subject=f'SwiftTrade Admin – New Gift Card Submission ({tx.reference})',
-        template_name='emails/admin_giftcard_pending.html',
-        context={
-            'admin_name': 'Admin',
-            'brand': payload.brand,
-            'currency_symbol': payload.currency_symbol,
-            'denomination': str(payload.denomination),
-            'ngn_payout': f"{float(payload.ngn_payout):,.2f}",
-            'reference': tx.reference,
-            'details': [
-                {'label': 'User', 'value': request.user.email},
-                {'label': 'Brand', 'value': payload.brand},
-                {'label': 'Denomination', 'value': f"{payload.currency_symbol}{payload.denomination}"},
-                {'label': 'Reference', 'value': tx.reference},
-            ],
-        }
-    )
+    
+    try:
+        send_telegram_task.delay(admin_msg)
+        admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@swiftradeapp.com')
+        send_email_task.delay(
+            to_email=admin_email,
+            to_name='SwiftTrade Admin',
+            subject=f'SwiftTrade Admin – New Gift Card Submission ({tx.reference})',
+            template_name='emails/admin_giftcard_pending.html',
+            context={
+                'admin_name': 'Admin',
+                'brand': payload.brand,
+                'currency_symbol': payload.currency_symbol,
+                'denomination': str(payload.denomination),
+                'ngn_payout': f"{float(payload.ngn_payout):,.2f}",
+                'reference': tx.reference,
+                'details': [
+                    {'label': 'User', 'value': request.user.email},
+                    {'label': 'Brand', 'value': payload.brand},
+                    {'label': 'Denomination', 'value': f"{payload.currency_symbol}{payload.denomination}"},
+                    {'label': 'Reference', 'value': tx.reference},
+                ],
+            }
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to queue submission notifications: {e}")
 
     return tx
 
@@ -297,30 +301,34 @@ def admin_approve_transaction(request, tx_id: int):
     from notifications.tasks import send_telegram_task, send_email_task
     from django.conf import settings
 
-    # User email
-    send_email_task.delay(
-        to_email=tx.user.email,
-        to_name=tx.user.full_name,
-        subject=f'SwiftTrade – Gift Card Approved ✅ ({tx.reference})',
-        template_name='emails/giftcard_approved.html',
-        context={
-            'full_name': tx.user.full_name,
-            'brand': tx.brand,
-            'currency_symbol': tx.currency_symbol,
-            'denomination': str(tx.denomination),
-            'ngn_payout': f"{float(tx.ngn_payout):,.2f}",
-            'reference': tx.reference,
-        }
-    )
+    try:
+        # User email
+        send_email_task.delay(
+            to_email=tx.user.email,
+            to_name=tx.user.full_name,
+            subject=f'SwiftTrade – Gift Card Approved ✅ ({tx.reference})',
+            template_name='emails/giftcard_approved.html',
+            context={
+                'full_name': tx.user.full_name,
+                'brand': tx.brand,
+                'currency_symbol': tx.currency_symbol,
+                'denomination': str(tx.denomination),
+                'ngn_payout': f"{float(tx.ngn_payout):,.2f}",
+                'reference': tx.reference,
+            }
+        )
 
-    # Admin Telegram
-    send_telegram_task.delay(
-        f"✅ <b>Gift Card Approved</b>\n"
-        f"User: {tx.user.email}\n"
-        f"Card: {tx.brand} {tx.currency_symbol}{tx.denomination}\n"
-        f"Paid: ₦{tx.ngn_payout:,.2f}\n"
-        f"Ref: {tx.reference}"
-    )
+        # Admin Telegram
+        send_telegram_task.delay(
+            f"✅ <b>Gift Card Approved</b>\n"
+            f"User: {tx.user.email}\n"
+            f"Card: {tx.brand} {tx.currency_symbol}{tx.denomination}\n"
+            f"Paid: ₦{tx.ngn_payout:,.2f}\n"
+            f"Ref: {tx.reference}"
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to queue approval notifications: {e}")
 
     return {"success": True, "reference": tx.reference, "ngn_credited": str(tx.ngn_payout)}
 
@@ -371,30 +379,34 @@ def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     # Email + Telegram for rejection
     from notifications.tasks import send_telegram_task, send_email_task
 
-    # User email
-    send_email_task.delay(
-        to_email=tx.user.email,
-        to_name=tx.user.full_name,
-        subject=f'SwiftTrade – Gift Card Not Accepted ({tx.reference})',
-        template_name='emails/giftcard_rejected.html',
-        context={
-            'full_name': tx.user.full_name,
-            'brand': tx.brand,
-            'currency_symbol': tx.currency_symbol,
-            'denomination': str(tx.denomination),
-            'reference': tx.reference,
-            'reason': reason.label,
-        }
-    )
+    try:
+        # User email
+        send_email_task.delay(
+            to_email=tx.user.email,
+            to_name=tx.user.full_name,
+            subject=f'SwiftTrade – Gift Card Not Accepted ({tx.reference})',
+            template_name='emails/giftcard_rejected.html',
+            context={
+                'full_name': tx.user.full_name,
+                'brand': tx.brand,
+                'currency_symbol': tx.currency_symbol,
+                'denomination': str(tx.denomination),
+                'reference': tx.reference,
+                'reason': reason.label,
+            }
+        )
 
-    # Admin Telegram
-    send_telegram_task.delay(
-        f"❌ <b>Gift Card Rejected</b>\n"
-        f"User: {tx.user.email}\n"
-        f"Card: {tx.brand} {tx.currency_symbol}{tx.denomination}\n"
-        f"Reason: {reason.label}\n"
-        f"Ref: {tx.reference}"
-    )
+        # Admin Telegram
+        send_telegram_task.delay(
+            f"❌ <b>Gift Card Rejected</b>\n"
+            f"User: {tx.user.email}\n"
+            f"Card: {tx.brand} {tx.currency_symbol}{tx.denomination}\n"
+            f"Reason: {reason.label}\n"
+            f"Ref: {tx.reference}"
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to queue rejection notifications: {e}")
 
     return {"success": True, "reference": tx.reference, "reason": reason.label}
 
