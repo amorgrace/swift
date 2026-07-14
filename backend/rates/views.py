@@ -216,7 +216,7 @@ def get_my_giftcard_transactions(request):
 
 # ── Admin Gift Card Transaction Endpoints ──────────────────────────────────────
 
-@router.get('/admin/transactions/', response=list[AdminGiftCardTransactionOutSchema])
+@router.get('/admin/transactions', response=list[AdminGiftCardTransactionOutSchema])
 def admin_list_transactions(request, status: str = ""):
     """List all gift card transactions. Filter by status: pending|approved|rejected."""
     if not request.user.is_staff:
@@ -227,7 +227,7 @@ def admin_list_transactions(request, status: str = ""):
     return qs
 
 
-@router.get('/admin/transactions/{tx_id}/', response=AdminGiftCardTransactionOutSchema)
+@router.get('/admin/transactions/{tx_id}', response=AdminGiftCardTransactionOutSchema)
 def admin_get_transaction(request, tx_id: int):
     """Get a single gift card transaction (Admin only)."""
     if not request.user.is_staff:
@@ -239,7 +239,7 @@ def admin_get_transaction(request, tx_id: int):
     return tx
 
 
-@router.post('/admin/transactions/{tx_id}/approve/')
+@router.post('/admin/transactions/{tx_id}/approve')
 def admin_approve_transaction(request, tx_id: int):
     """
     Approve a gift card transaction (Admin only).
@@ -286,16 +286,20 @@ def admin_approve_transaction(request, tx_id: int):
             )
 
         # Fire in-app notification
-        Notification.objects.create(
-            user=tx.user,
-            type='giftcard',
-            title='Gift Card Approved 🎉',
-            body=(
-                f"Your {tx.brand} {tx.currency_symbol}{tx.denomination} gift card "
-                f"(Ref: {tx.reference}) has been approved. "
-                f"₦{tx.ngn_payout:,.2f} has been credited to your wallet."
-            ),
-        )
+        try:
+            Notification.objects.create(
+                user=tx.user,
+                type='giftcard',
+                title='Gift Card Approved 🎉',
+                body=(
+                    f"Your {tx.brand} {tx.currency_symbol}{tx.denomination} gift card "
+                    f"(Ref: {tx.reference}) has been approved. "
+                    f"₦{tx.ngn_payout:,.2f} has been credited to your wallet."
+                ),
+            )
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to create approval notification: {e}")
 
     # Email + Telegram to user and admin after atomic block
     from notifications.tasks import send_telegram_task, send_email_task
@@ -333,7 +337,7 @@ def admin_approve_transaction(request, tx_id: int):
     return {"success": True, "reference": tx.reference, "ngn_credited": str(tx.ngn_payout)}
 
 
-@router.post('/admin/transactions/{tx_id}/reject/')
+@router.post('/admin/transactions/{tx_id}/reject')
 def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     """
     Reject a gift card transaction with a predefined reason (Admin only).
@@ -359,22 +363,30 @@ def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
 
     # Update the unified Transaction for user history
     from transactions.models import Transaction
-    user_tx = Transaction.objects.filter(related_giftcard=tx).first()
-    if user_tx:
-        user_tx.status = 'failed'
-        user_tx.save()
+    try:
+        user_tx = Transaction.objects.filter(related_giftcard=tx).first()
+        if user_tx:
+            user_tx.status = 'failed'
+            user_tx.save()
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to update unified transaction on rejection: {e}")
 
-    Notification.objects.create(
-        user=tx.user,
-        type='giftcard',
-        title='Gift Card Not Accepted',
-        body=(
-            f"Your {tx.brand} {tx.currency_symbol}{tx.denomination} gift card "
-            f"(Ref: {tx.reference}) could not be processed. "
-            f"Reason: {reason.label}. "
-            f"Please contact support if you need assistance."
-        ),
-    )
+    try:
+        Notification.objects.create(
+            user=tx.user,
+            type='giftcard',
+            title='Gift Card Not Accepted',
+            body=(
+                f"Your {tx.brand} {tx.currency_symbol}{tx.denomination} gift card "
+                f"(Ref: {tx.reference}) could not be processed. "
+                f"Reason: {reason.label}. "
+                f"Please contact support if you need assistance."
+            ),
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to create rejection notification: {e}")
 
     # Email + Telegram for rejection
     from notifications.tasks import send_telegram_task, send_email_task
