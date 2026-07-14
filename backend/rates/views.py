@@ -355,14 +355,14 @@ def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     tx.rejection_reason = reason
     tx.reviewed_by = request.user
     tx.reviewed_at = timezone.now()
-    tx.save(update_fields=['status', 'rejection_reason', 'reviewed_by', 'reviewed_at', 'updated_at'])
+    tx.save()
 
     # Update the unified Transaction for user history
     from transactions.models import Transaction
     user_tx = Transaction.objects.filter(related_giftcard=tx).first()
     if user_tx:
         user_tx.status = 'failed'
-        user_tx.save(update_fields=['status'])
+        user_tx.save()
 
     Notification.objects.create(
         user=tx.user,
