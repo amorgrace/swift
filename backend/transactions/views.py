@@ -73,7 +73,13 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
 
     results = []
     for t in qs:
-        mapped_type = 'trade' if t.type == TransactionType.DEPOSIT else 'withdrawal'
+        is_giftcard = hasattr(t, 'related_giftcard') and t.related_giftcard_id is not None
+        if t.type == TransactionType.WITHDRAWAL:
+            mapped_type = 'withdrawal'
+        elif is_giftcard:
+            mapped_type = 'giftcard'
+        else:
+            mapped_type = 'trade'
         
         bank = None
         coin = None
@@ -91,7 +97,7 @@ def get_transactions(request, filters: TransactionFilterSchema = Query(...)):
             # Fall back to rate_applied (per-coin NGN rate) for older records.
             rate = d.ngn_usd_rate if d.ngn_usd_rate else d.rate_applied
             deposit_id = t.related_deposit_id
-        elif t.type == TransactionType.DEPOSIT and hasattr(t, 'related_giftcard') and t.related_giftcard:
+        elif is_giftcard:
             g = t.related_giftcard
             coin = g.brand
             network = g.country_code
