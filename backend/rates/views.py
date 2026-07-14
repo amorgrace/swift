@@ -148,6 +148,46 @@ def submit_giftcard_sell(request, payload: GiftCardTransactionSubmitSchema):
         image_url=payload.image_url,
         card_code=payload.card_code,
     )
+
+    # Create pending Transaction for user history
+    from transactions.models import Transaction, TransactionType
+    from decimal import Decimal
+    Transaction.objects.create(
+        wallet=wallet,
+        type=TransactionType.DEPOSIT,
+        amount=Decimal(str(payload.ngn_payout)),
+        description=f"Trade {payload.brand} {payload.currency_symbol}{payload.denomination} Gift Card",
+        status='pending',
+        related_giftcard=tx
+    )
+
+    # Fire admin notifications
+    from notifications.tasks import send_telegram_task
+    admin_msg = (
+        f"🚨 <b>New Gift Card Submission</b> 🚨\n\n"
+        f"👤 <b>User:</b> {request.user.email}\n"
+        f"💳 <b>Brand:</b> {payload.brand} ({payload.country_code})\n"
+        f"💰 <b>Denomination:</b> {payload.currency_symbol}{payload.denomination}\n"
+        f"💱 <b>Expected Payout:</b> ₦{payload.ngn_payout:,.2f}\n"
+        f"🔗 <b>Ref:</b> {tx.reference}\n\n"
+        f"Please review in the Admin Panel."
+    )
+    send_telegram_task.delay(admin_msg)
+
+    from notifications.tasks import send_email_task
+    from django.conf import settings
+    # Send email to admin (using a default admin email or settings.DEFAULT_FROM_EMAIL)
+    admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@swiftradeapp.com')
+    send_email_task.delay(
+        subject=f"New Gift Card Submission - {tx.reference}",
+        recipient_list=[admin_email],
+        template_name='emails/admin_notification.html',
+        context={
+            'title': 'New Gift Card Submission',
+            'message': f"User {request.user.email} submitted a {payload.brand} {payload.currency_symbol}{payload.denomination} gift card for review."
+        }
+    )
+
     return tx
 
 
@@ -213,16 +253,22 @@ def admin_approve_transaction(request, tx_id: int):
         tx.reviewed_at = timezone.now()
         tx.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'updated_at'])
 
-        # Create a unified Transaction for user history
+        # Update the unified Transaction for user history
         from transactions.models import Transaction, TransactionType
-        Transaction.objects.create(
-            wallet=wallet,
-            type=TransactionType.DEPOSIT,
-            amount=Decimal(str(tx.ngn_payout)),
-            description=f"Trade {tx.brand} {tx.currency_symbol}{tx.denomination} Gift Card",
-            status='success',
-            related_giftcard=tx
-        )
+        user_tx = Transaction.objects.filter(related_giftcard=tx).first()
+        if user_tx:
+            user_tx.status = 'success'
+            user_tx.save(update_fields=['status'])
+        else:
+            # Fallback for legacy records
+            Transaction.objects.create(
+                wallet=wallet,
+                type=TransactionType.DEPOSIT,
+                amount=Decimal(str(tx.ngn_payout)),
+                description=f"Trade {tx.brand} {tx.currency_symbol}{tx.denomination} Gift Card",
+                status='success',
+                related_giftcard=tx
+            )
 
         # Fire in-app notification
         Notification.objects.create(
@@ -262,6 +308,13 @@ def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     tx.reviewed_by = request.user
     tx.reviewed_at = timezone.now()
     tx.save(update_fields=['status', 'rejection_reason', 'reviewed_by', 'reviewed_at', 'updated_at'])
+
+    # Update the unified Transaction for user history
+    from transactions.models import Transaction
+    user_tx = Transaction.objects.filter(related_giftcard=tx).first()
+    if user_tx:
+        user_tx.status = 'failed'
+        user_tx.save(update_fields=['status'])
 
     Notification.objects.create(
         user=tx.user,
