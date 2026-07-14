@@ -177,7 +177,11 @@ def submit_giftcard_sell(request, payload: GiftCardTransactionSubmitSchema):
     )
     
     try:
+        from datetime import datetime
+        # 1. Admin Telegram alert
         send_telegram_task.delay(admin_msg)
+
+        # 2. Admin email alert
         admin_email = getattr(settings, 'ADMIN_EMAIL', 'admin@swiftradeapp.com')
         send_email_task.delay(
             to_email=admin_email,
@@ -197,6 +201,24 @@ def submit_giftcard_sell(request, payload: GiftCardTransactionSubmitSchema):
                     {'label': 'Denomination', 'value': f"{payload.currency_symbol}{payload.denomination}"},
                     {'label': 'Reference', 'value': tx.reference},
                 ],
+            }
+        )
+
+        # 3. User confirmation email — "Your gift card is under review"
+        send_email_task.delay(
+            to_email=request.user.email,
+            to_name=request.user.full_name,
+            subject=f'SwiftTrade – Gift Card Received & Under Review ({tx.reference})',
+            template_name='emails/giftcard_pending.html',
+            context={
+                'full_name': request.user.full_name,
+                'brand': payload.brand,
+                'currency_symbol': payload.currency_symbol,
+                'denomination': str(payload.denomination),
+                'ngn_payout': f"{float(payload.ngn_payout):,.2f}",
+                'reference': tx.reference,
+                'timestamp': datetime.now().strftime("%B %d, %Y at %I:%M %p"),
+                'year': datetime.now().year,
             }
         )
     except Exception as e:
@@ -306,6 +328,7 @@ def admin_approve_transaction(request, tx_id: int):
     from django.conf import settings
 
     try:
+        from datetime import datetime
         # User email
         send_email_task.delay(
             to_email=tx.user.email,
@@ -319,6 +342,8 @@ def admin_approve_transaction(request, tx_id: int):
                 'denomination': str(tx.denomination),
                 'ngn_payout': f"{float(tx.ngn_payout):,.2f}",
                 'reference': tx.reference,
+                'timestamp': datetime.now().strftime("%B %d, %Y at %I:%M %p"),
+                'year': datetime.now().year,
             }
         )
 
