@@ -448,7 +448,7 @@ def admin_reject_transaction(request, tx_id: int, payload: AdminRejectSchema):
     return {"success": True, "reference": tx.reference, "reason": reason.label}
 
 
-@router.get('/admin/rejection-reasons/', response=list[RejectionReasonSchema])
+@router.get('/admin/rejection-reasons', response=list[RejectionReasonSchema])
 def admin_list_rejection_reasons(request):
     """Get all active rejection reasons for the admin dropdown."""
     if not request.user.is_staff:
