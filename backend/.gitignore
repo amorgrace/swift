@@ -36,3 +36,5 @@ newemails.html
 # Utility scripts
 find_missed_deposits.py
 find_missed_btc_deposits.py
+test_reject.py
+
