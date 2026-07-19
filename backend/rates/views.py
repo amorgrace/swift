@@ -61,6 +61,11 @@ def update_system_settings(request, payload: SystemSettingsSchema):
 @router.get('/giftcards', response=list[GiftCardSchema], auth=None)
 def get_all_giftcards(request):
     """Get all gift card configurations."""
+    from django.core.cache import cache
+    cached_cards = cache.get('all_giftcards_computed')
+    if cached_cards is not None:
+        return cached_cards
+
     settings = SystemSettings.get_settings()
     buy_rate = settings.ngn_usd_buy_rate
     cards = GiftCard.objects.all().values(
@@ -73,6 +78,8 @@ def get_all_giftcards(request):
         if card['use_auto_rate'] and buy_rate > 0:
             card['rate_per_dollar'] = (buy_rate * card['rate_multiplier']).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         result.append(card)
+        
+    cache.set('all_giftcards_computed', result, timeout=300)  # Cache for 5 minutes
     return result
 
 @router.post('/admin/giftcards', response=GiftCardSchema)
@@ -91,6 +98,9 @@ def create_giftcard(request, payload: GiftCardCreateSchema):
     ).first()
     if card and card['use_auto_rate'] and buy_rate > 0:
         card['rate_per_dollar'] = (buy_rate * card['rate_multiplier']).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        
+    from django.core.cache import cache
+    cache.delete('all_giftcards_computed')
     return card
 
 @router.put('/admin/giftcards/{giftcard_id}', response=GiftCardSchema)
@@ -113,6 +123,9 @@ def update_giftcard(request, giftcard_id: int, payload: GiftCardUpdateSchema):
     ).first()
     if card and card['use_auto_rate'] and buy_rate > 0:
         card['rate_per_dollar'] = (buy_rate * card['rate_multiplier']).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+        
+    from django.core.cache import cache
+    cache.delete('all_giftcards_computed')
     return card
 
 @router.delete('/admin/giftcards/{giftcard_id}')
@@ -122,6 +135,9 @@ def delete_giftcard(request, giftcard_id: int):
         raise HttpError(403, "Permission denied.")
     giftcard = get_object_or_404(GiftCard, id=giftcard_id)
     giftcard.delete()
+    
+    from django.core.cache import cache
+    cache.delete('all_giftcards_computed')
     return {"success": True}
 
 
