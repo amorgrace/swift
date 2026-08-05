@@ -129,14 +129,16 @@ class RateService:
         """
         settings_obj = SystemSettings.get_settings()
         if settings_obj.ngn_usd_buy_rate > Decimal('0'):
-            # Convert the CoinGecko USD price directly to NGN
+            # Use the cache-aware helper (checks Redis L1 first, then DB)
+            # instead of a bare CachedRate.objects.get() that always hits Neon.
             try:
-                cached = CachedRate.objects.get(asset=asset.lower())
-                if cached.rate_usd and cached.rate_usd > 0:
-                    return (cached.rate_usd * settings_obj.ngn_usd_buy_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-            except CachedRate.DoesNotExist:
+                rates = RateService.get_market_rates(asset)
+                rate_usd = rates.get('usd')
+                if rate_usd and rate_usd > 0:
+                    return (rate_usd * settings_obj.ngn_usd_buy_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+            except Exception:
                 pass
-            
+
         market_rate = RateService.get_market_rate(asset)
         margin = settings_obj.conversion_margin_percentage
         markdown = market_rate * (margin / Decimal('100'))
@@ -155,20 +157,18 @@ class RateService:
         user_rate = RateService.get_user_rate(asset)
         ngn_amount = (crypto_amount * user_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
 
-        # Determine the user-friendly NGN/USD rate (matches what Live Rates panel shows)
+        # Determine the user-friendly NGN/USD rate (matches what Live Rates panel shows).
+        # Use get_market_rates() (cache-aware) instead of a bare DB get.
         settings_obj = SystemSettings.get_settings()
+        rates = RateService.get_market_rates(asset)
+        rate_usd = rates.get('usd')
+
         if settings_obj.ngn_usd_buy_rate > Decimal('0'):
             ngn_usd_rate = settings_obj.ngn_usd_buy_rate
+        elif rate_usd and rate_usd > Decimal('0'):
+            ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
         else:
-            # Derive it from rate_usd if available
-            try:
-                cached = CachedRate.objects.get(asset=asset.lower())
-                if cached.rate_usd and cached.rate_usd > Decimal('0'):
-                    ngn_usd_rate = (market_rate / cached.rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-                else:
-                    ngn_usd_rate = None
-            except CachedRate.DoesNotExist:
-                ngn_usd_rate = None
+            ngn_usd_rate = None
 
         return {
             'market_rate': market_rate,
@@ -187,10 +187,8 @@ class RateService:
         if cached_all_rates:
             return cached_all_rates
 
-        results = []
-        margin = RateService.get_margin_percentage()
-
-        # Check if we have fresh rates in DB cache
+        # ---- Fetch all data up-front (2 queries max, not N queries) ---------
+        # Check if a fresh fetch is needed using the oldest row's age.
         needs_fetch = True
         oldest_rate = CachedRate.objects.all().order_by('updated_at').first()
         if oldest_rate:
@@ -204,38 +202,16 @@ class RateService:
             except ValueError:
                 logger.warning('Could not fetch live rates, using cached')
 
+        # Bulk-fetch all cached rates in ONE query, keyed by asset code.
+        cached_rate_map = {r.asset: r for r in CachedRate.objects.all()}
+        # Fetch SystemSettings ONCE before the loop (was being called per-asset).
+        settings_obj = SystemSettings.get_settings()
+        margin = settings_obj.conversion_margin_percentage
+
+        results = []
         for asset_code, _ in AssetChoices.choices:
-            try:
-                cached = CachedRate.objects.get(asset=asset_code)
-                market_rate = cached.rate_ngn
-                rate_usd = cached.rate_usd
-
-                settings_obj = SystemSettings.get_settings()
-                if settings_obj.ngn_usd_buy_rate > Decimal('0') and rate_usd and rate_usd > Decimal('0'):
-                    user_rate = (rate_usd * settings_obj.ngn_usd_buy_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-                    market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-                    user_ngn_usd_rate = settings_obj.ngn_usd_buy_rate
-                else:
-                    markdown = market_rate * (margin / Decimal('100'))
-                    user_rate = (market_rate - markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-
-                    market_ngn_usd_rate = None
-                    user_ngn_usd_rate = None
-                    if rate_usd and rate_usd > Decimal('0'):
-                        market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-                        usd_markdown = market_ngn_usd_rate * (margin / Decimal('100'))
-                        user_ngn_usd_rate = (market_ngn_usd_rate - usd_markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
-
-                results.append({
-                    'asset': asset_code,
-                    'market_rate': market_rate,
-                    'user_rate': user_rate,
-                    'market_ngn_usd_rate': market_ngn_usd_rate,
-                    'user_ngn_usd_rate': user_ngn_usd_rate,
-                    'margin_percentage': margin if settings_obj.ngn_usd_buy_rate <= Decimal('0') else Decimal('0.00'),
-                    'updated_at': cached.updated_at.isoformat(),
-                })
-            except CachedRate.DoesNotExist:
+            cached = cached_rate_map.get(asset_code)
+            if cached is None:
                 results.append({
                     'asset': asset_code,
                     'market_rate': None,
@@ -245,6 +221,35 @@ class RateService:
                     'margin_percentage': margin,
                     'updated_at': None,
                 })
+                continue
+
+            market_rate = cached.rate_ngn
+            rate_usd = cached.rate_usd
+
+            if settings_obj.ngn_usd_buy_rate > Decimal('0') and rate_usd and rate_usd > Decimal('0'):
+                user_rate = (rate_usd * settings_obj.ngn_usd_buy_rate).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                user_ngn_usd_rate = settings_obj.ngn_usd_buy_rate
+            else:
+                markdown = market_rate * (margin / Decimal('100'))
+                user_rate = (market_rate - markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+                market_ngn_usd_rate = None
+                user_ngn_usd_rate = None
+                if rate_usd and rate_usd > Decimal('0'):
+                    market_ngn_usd_rate = (market_rate / rate_usd).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+                    usd_markdown = market_ngn_usd_rate * (margin / Decimal('100'))
+                    user_ngn_usd_rate = (market_ngn_usd_rate - usd_markdown).quantize(Decimal('0.01'), rounding=ROUND_DOWN)
+
+            results.append({
+                'asset': asset_code,
+                'market_rate': market_rate,
+                'user_rate': user_rate,
+                'market_ngn_usd_rate': market_ngn_usd_rate,
+                'user_ngn_usd_rate': user_ngn_usd_rate,
+                'margin_percentage': margin if settings_obj.ngn_usd_buy_rate <= Decimal('0') else Decimal('0.00'),
+                'updated_at': cached.updated_at.isoformat(),
+            })
 
         from django.core.cache import cache
         cache.set('all_rates_computed', results, timeout=RATE_CACHE_TTL)

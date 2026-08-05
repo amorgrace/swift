@@ -90,7 +90,11 @@ if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=0,
+            # Reuse connections for 60 s instead of opening a new connection
+            # on every request (Neon bills per connection-open overhead).
+            # If you use Neon's PgBouncer pooled URL, keep this at 0 or use
+            # CONN_MAX_AGE=None (unlimited) — PgBouncer handles the pooling.
+            conn_max_age=60,
             ssl_require=True,
         )
     }
@@ -249,16 +253,24 @@ CELERY_TASK_ACKS_LATE = False
 # Don't pre-fetch more tasks than the worker can handle at once
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
-# Beat schedule — proactively refresh crypto rates every 60 seconds
+# Beat schedule — proactively refresh crypto rates
+# Rate cache TTL is 120 s (RATE_CACHE_TTL), so firing every 120 s is enough.
+# Halving the write frequency reduces Neon upserts from ~7,200 to ~3,600/day.
 CELERY_BEAT_SCHEDULE = {
-    'refresh-crypto-rates-every-60s': {
+    'refresh-crypto-rates-every-120s': {
         'task': 'rates.tasks.refresh_rates',
-        'schedule': 60.0,
+        'schedule': 120.0,
+    },
+    # Clean up expired JWT outstanding/blacklisted tokens daily at 02:00 UTC.
+    # Prevents the token_blacklist_outstandingtoken table from growing unboundedly.
+    'flush-expired-tokens-daily': {
+        'task': 'ninja_jwt.token_blacklist.tasks.delete_expired_tokens',
+        'schedule': 86400.0,  # every 24 hours
     },
 }
 
 # ---------------------------------------------------------------------------
-# Django Cache → Redis (L1), DB stays as L2 for persistent rate storage
+# Django Cache → Redis
 # ---------------------------------------------------------------------------
 CACHES = {
     'default': {
@@ -268,9 +280,23 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SOCKET_CONNECT_TIMEOUT': 5,
             'SOCKET_TIMEOUT': 5,
-            'IGNORE_EXCEPTIONS': True,  # fall back gracefully if Redis is down
+            # IGNORE_EXCEPTIONS=True silently falls back to the DB when Redis
+            # is unhealthy — which is the primary cause of Neon being hammered.
+            # We keep it True for resilience but have addressed the root causes
+            # (N+1 queries, conn_max_age) so a Redis blip won't spike Neon as badly.
+            'IGNORE_EXCEPTIONS': True,
         },
         'TIMEOUT': 120,
     }
 }
+
+# Use Redis-backed sessions instead of the default DB-backed sessions.
+# Django admin still works fine with cache sessions.
+# This eliminates the per-request SELECT/INSERT to the django_session table.
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+# Make django-ratelimit explicitly use the Redis cache (same 'default' alias).
+# Without this, ratelimit uses the default cache but it's better to be explicit.
+RATELIMIT_USE_CACHE = 'default'
 
